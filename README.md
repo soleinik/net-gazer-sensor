@@ -14,6 +14,16 @@ Captured data can be:
 + many other things...  
 <br/>
 
+# TODOs
++ geoiplocation - move to another process
++ traceroute  
+  + udp
+  + icmp
+  + tcp
+
+
+<br/>
+
 # To build
 ```
 $ cargo build 
@@ -31,7 +41,7 @@ $ cargo run -- -i eth0
 ```
 <br/>
 
-### Configuration files search order
+### Configuration file search order
 ```
 ./etc/net-gazer/net-gazer.toml
 /usr/local/etc/net-gazer/net-gazer.toml
