@@ -30,7 +30,7 @@ root is needed to run (./.cargo/config)
 ```
 $ cargo run [-- --help]
 
-$ cargo run -- -i eth0
+$ cargo run -- -i eth0 -v
 
 ```
 
