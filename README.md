@@ -2,7 +2,7 @@
 
 # "_net-gazer_" - network connection capture and analysis daemon 
 
-# Goals
+## Goals
 Design daemon that seats on gateway and passively intercepts traversing traffic, detecting SYN and SYN+ACK handshakes portion. Reads remote IP and attempts to traceroute to remote host, capturing hops.  
 
 Captured data can be:
@@ -12,7 +12,7 @@ Captured data can be:
 + capturing SACK (tcp retransmits) - derive network quality
 + many other things...  
 
-# TODOs
+## TODOs
 + geoiplocation - move to another process
 + traceroute  
   + udp
@@ -20,7 +20,7 @@ Captured data can be:
   + tcp
 
 
-# To build
+## To build
 ```
 $ cargo build 
 ```
@@ -34,7 +34,7 @@ $ cargo run -- -i eth0
 
 ```
 
-### Configuration file search order
+## Configuration file search order
 ```
 ./etc/net-gazer/net-gazer.toml
 /usr/local/etc/net-gazer/net-gazer.toml
