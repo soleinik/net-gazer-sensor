@@ -1,12 +1,12 @@
 # _net-gazer_ - network connection capture and analysis daemon
 
 # Goals
-Design daemon that seats on gateway and passively intersepts traversing traffic, detecting SYN and SYN+ACK handshakes portion. Reads remote IP and attempts to traceroute to remote host, capturing hops. 
+Design daemon that seats on gateway and passively intercepts traversing traffic, detecting SYN and SYN+ACK handshakes portion. Reads remote IP and attempts to traceroute to remote host, capturing hops. 
 Captured data can be:
 1. graphed
 2. geolocation enriched
-3. by measuring time between SYN and SYN-ACK derive network performance
-4. capturing SACK (tcp retransmits) - network quality
+3. from elapced time between SYN and SYN-ACK derive network performance
+4. capturing SACK (tcp retransmits) - derive network quality
 5. many other things...
 
 
