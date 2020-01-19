@@ -1,0 +1,36 @@
+[package]
+name = "net-gazer"
+version = "0.1.0"
+authors = ["Serguei Oleinik <serguei.oleinik@dais.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[workspace]
+members=[
+    "lib-tracer",
+    "lib-data",
+]
+
+
+
+[dependencies]
+lib-tracer = { path="./lib-tracer" }
+lib-data = { path="./lib-data" }
+
+structopt = "0.3"
+config = "0.10"
+
+
+log = "0.4"
+env_logger = "0.7"
+
+
+pnet = "0.25"
+ipnetwork = "0.15.0"
+
+async-std = { version="1.4", default-features = true, features=["attributes"] }
+futures = "0.3"
+
+bitflags = "1"
+
