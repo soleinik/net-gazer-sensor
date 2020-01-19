@@ -13,7 +13,4 @@ log = "0.4.8"
 pnet = "0.23"
 packet-builder = "0.4.0"
 
-#geoip = "0.0.13"
-maxminddb = "0.13.0"
-#serde = "1.0"
-#serde_derive = "1.0"
+#maxminddb = "0.13.0"
