@@ -1,44 +1,41 @@
 use std::net::Ipv4Addr;
 
 use pnet::packet::icmp::{IcmpTypes};
-use packet_builder::ipv4;
-use packet_builder::payload::PayloadData;
-use packet_builder::L4Checksum;
 
-use pnet::packet::Packet;
-use pnet::util::MacAddr;
-use pnet::packet::ethernet::MutableEthernetPacket;
+use pnet::packet::MutablePacket;
+use pnet::packet::ipv4::MutableIpv4Packet;
+use  pnet::packet::ip::IpNextHeaderProtocols;
+use pnet::packet::icmp::echo_request::MutableEchoRequestPacket;
+use pnet::util;
 
-use std::cell::RefCell;
-thread_local! {
-    pub static PKT_BUF: RefCell<[u8; 1500]> = RefCell::new([0u8; 1500]);
+use lib_data::AppResult;
+
+
+static IPV4_HEADER_LEN: usize = 21;
+static ICMP_HEADER_LEN: usize = 8;
+static ICMP_PAYLOAD_LEN: usize = 32;
+
+
+pub fn create_icmp_packet<'a>( buffer_ip: &'a mut [u8], buffer_icmp: &'a mut [u8], src: Ipv4Addr, dest: Ipv4Addr, ttl: u8) -> AppResult<MutableIpv4Packet<'a>> {
+    let mut ipv4_packet = MutableIpv4Packet::new(buffer_ip).unwrap();
+
+    ipv4_packet.set_version(4);
+    ipv4_packet.set_header_length(IPV4_HEADER_LEN as u8);
+    ipv4_packet.set_total_length((IPV4_HEADER_LEN + ICMP_HEADER_LEN + ICMP_PAYLOAD_LEN) as u16);
+    ipv4_packet.set_ttl(ttl);
+    ipv4_packet.set_next_level_protocol(IpNextHeaderProtocols::Icmp);
+
+    ipv4_packet.set_source(src);
+    ipv4_packet.set_destination(dest);
+
+
+
+    let mut icmp_packet = MutableEchoRequestPacket::new(buffer_icmp).unwrap();
+    icmp_packet.set_icmp_type(IcmpTypes::EchoRequest);
+
+    let checksum = util::checksum(&icmp_packet.packet_mut(), 2);
+    icmp_packet.set_checksum(checksum);
+
+    ipv4_packet.set_payload(icmp_packet.packet_mut());
+    Ok(ipv4_packet)
 }
-
-
-// pub fn echo_request<'a>(my_mac:MacAddr, src_ip:Ipv4Addr, dst_ip:Ipv4Addr) -> MutableEthernetPacket<'a>{
-//     PKT_BUF.with(| buf| {
-//         let mut buf = *buf.borrow_mut();
-//         packet_builder!(
-//             buf,
-//             ether({set_destination => MacAddr(255,255,255,255,255,255), set_source => my_mac}) / 
-//             ipv4({set_source => src_ip, set_destination => dst_ip }) /
-//             icmp_echo_req({set_icmp_type => IcmpTypes::EchoRequest}) / 
-//             payload({"hello".to_string().into_bytes()
-//         })
-//         )
-//     })
-// }
-
-
-
-
-// let mut pkt_buf = [0u8; 1500];
-// let pkt = packet_builder!(
-//      pkt_buf,
-//      ether({set_destination => MacAddr(1,2,3,4,5,6), set_source => MacAddr(10,1,1,1,1,1)}) / 
-//      ipv4({set_source => ipv4addr!("127.0.0.1"), set_destination => ipv4addr!("127.0.0.1") }) /
-//      icmp_echo_req({set_icmp_type => IcmpTypes::EchoRequest}) / 
-//      payload({"hello".to_string().into_bytes()})
-// );
-
-// sender.send_to(pkt.packet(), None).unwrap().unwrap();

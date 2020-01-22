@@ -104,8 +104,10 @@ async fn main() -> std::io::Result<()> {
 
 
 
-    //communication via channels
+    //communication via async channels - unbounded queue, watch for OOM. 
+    // 1:1 producer:consumer
     let (data_sender, data_receiver): (lib_data::SenderChannel,lib_data::ReceiverChannel) = mpsc::channel();
+
 
     lib_tracer::start(data_receiver);
 
@@ -126,10 +128,24 @@ async fn main() -> std::io::Result<()> {
                                         if let Some(tcp) = TcpPacket::new(ip4pkt.payload()){
                                             let flags = tcp.get_flags();
 
-                                            if tcp.get_options_iter().any(|o| o.get_number() == TcpOptionNumbers::SACK){
+                                            if 0 == tcp.get_window(){
+                                                let src_port = tcp.get_source();
+                                                let dst_port = tcp.get_destination();
                                                 let src = ip4pkt.get_source();
                                                 let dst = ip4pkt.get_destination();
-                                                warn!("re-transmission request detected: {} -> {}. Connection quality issues?", src, dst);
+                                                warn!("source overloaded {}:{} -> {}:{}. Application performance issues?", src,src_port, dst, dst_port);
+                                            }
+
+                                            if tcp.get_options_iter().any(|o| o.get_number() == TcpOptionNumbers::SACK){
+
+                                                //let mss = tcp.get_options_iter().any(|o| o.get_number() == TcpOptionNumbers::MSS);
+
+                                                let src_port = tcp.get_source();
+                                                let dst_port = tcp.get_destination();
+
+                                                let src = ip4pkt.get_source();
+                                                let dst = ip4pkt.get_destination();
+                                                warn!("re-transmission request detected: {}:{} -> {}:{}. Connection quality issues?", src,src_port, dst, dst_port);
                                             }
 
                                             //SYN, SYN-ACK, ACK, u16
@@ -137,21 +153,16 @@ async fn main() -> std::io::Result<()> {
                                                 continue;
                                             }
 
-                                            let src = ip4pkt.get_source(); //remote ip
-                                            if net.contains(src){//originated from local network
-                                                //SYN =>
-                                                if !has_bit(flags, Flags::ACK){//SYN flag
-                                                    let dst = ip4pkt.get_destination(); //local ip
-                                                    data_sender.send(AppData::Syn(AppTarget{src,dst})).unwrap();
-                                                }
-    
-                                                continue;
+                                            let src = ip4pkt.get_source();
+                                            let dst = ip4pkt.get_destination();
+                                            let outbound = net.contains(src);
+
+                                            if !has_bit(flags, Flags::ACK){//SYN flag
+                                                data_sender.send(AppData::Syn(   AppTcp{src, dst, outbound})).unwrap();
+                                            }else{  //SYN-ACK
+                                                data_sender.send(AppData::SynAck(AppTcp{src, dst, outbound})).unwrap();
                                             }
 
-                                            //SYN+ACK <=
-                                            let dst = ip4pkt.get_destination(); //local ip
-                                            data_sender.send(AppData::SynAck(AppTarget{src,dst})).unwrap();
-                                            //println!("tcp {}->{} [{}]:{:?}",src, dst,decode(tcp.get_flags()), "tcp");
                                             continue;
                                         }
 
@@ -163,25 +174,29 @@ async fn main() -> std::io::Result<()> {
                                     IpNextHeaderProtocols::Icmp => {
                                         if let Some(icmp) = IcmpPacket::new(ip4pkt.payload()){
 
+                                            let src = ip4pkt.get_source();
+                                            
+                                            if net.contains(src){//outbound, originated from local network
+                                                continue;
+                                            }
+
                                             let t = icmp.get_icmp_type();
+
 
                                             match t{
                                                 IcmpTypes::EchoReply => {
-                                                    let src = ip4pkt.get_source();
                                                     let dst = ip4pkt.get_destination();
-                                                    data_sender.send(AppData::IcmpReply(AppIcmp{src,dst})).unwrap();
+                                                    data_sender.send(AppData::IcmpReply(AppIcmp{src, dst, outbound:false})).unwrap();
                     
                                                 }
                                                 IcmpTypes::TimeExceeded => {
-                                                    let src = ip4pkt.get_source();
                                                     let dst = ip4pkt.get_destination();
-                                                    data_sender.send(AppData::IcmpExceeded(AppIcmp{src,dst})).unwrap();
+                                                    data_sender.send(AppData::IcmpExceeded(AppIcmp{src, dst, outbound:false})).unwrap();
                     
                                                 }
                                                 IcmpTypes::DestinationUnreachable => {
-                                                    let src = ip4pkt.get_source();
                                                     let dst = ip4pkt.get_destination();
-                                                    data_sender.send(AppData::IcmpUnreachable(AppIcmp{src,dst})).unwrap();
+                                                    data_sender.send(AppData::IcmpUnreachable(AppIcmp{src, dst, outbound:false})).unwrap();
                     
                                                 }
                                                 _ => {

@@ -1,35 +1,52 @@
 #[macro_use] extern crate log;
-//#[macro_use] 
-extern crate packet_builder;
-
+//extern crate crossbeam_deque;
 //use maxminddb::geoip2;
 
 mod traceroute;
 
 use std::thread;
-use lib_data::{AppData, ReceiverChannel};
+use std::collections::HashMap;
+use std::net::Ipv4Addr;
+
+use lib_data::{AppData, ReceiverChannel, Data};
 
 
 pub fn start(rx:ReceiverChannel){
     info!("Starting tracer loop...");
     thread::spawn(move || {
 
+
+        let mut map = HashMap::<Ipv4Addr, Box<dyn Data<Ipv4Addr, AppData>>>::new();
+
+
         //let reader = maxminddb::Reader::open_readfile("/usr/local/share/GeoIP/GeoIP2-City.mmdb").unwrap();
         //let reader = maxminddb::Reader::open_readfile("/usr/share/GeoIP/GeoLite2-City.mmdb").unwrap();
 
         loop{
             if let Ok(msg) = rx.recv(){
-                match msg {
-                    AppData::Syn(msg) => {
+                match msg.clone() {
+                    AppData::Syn(m) => { //outbound, use dst
                         //let city: Option<geoip2::City> = reader.lookup(std::net::IpAddr::V4(msg.dst)).ok();
-                        info!("SYN: {}", msg); //,to_string(city));
+                        info!("SYN    : {}", m); //,to_string(city));
+                        if let Some(d) = map.get_mut(m.get_key()){
+                            d.apply(&msg)
+                        }else{
+                            map.insert(*m.get_key(), Box::new(m));
+                        }
                     }
-                    AppData::SynAck(msg) => {
+                    AppData::SynAck(m) => { //inbound, use src
                         //let city: Option<geoip2::City> = reader.lookup(std::net::IpAddr::V4(msg.dst)).ok();
-                        info!("SYN-ACK: {}", msg); //,to_string(city));
+                        info!("SYN-ACK: {}", m); //,to_string(city));
+
+                        if let Some(d) = map.get_mut(m.get_key()){
+                            d.apply(&msg)
+                        }else{
+                            map.insert(*m.get_key(), Box::new(m));
+                        }
+
                     }
-                    AppData::IcmpReply(msg) => {
-                        info!("ICMP-Reply: {}", msg)
+                    AppData::IcmpReply(m) => {
+                        info!("ICMP-Reply: {}", m)
                     }
                     AppData::IcmpExceeded(msg) => {
                         info!("ICMP-Exceeded: {}", msg)
