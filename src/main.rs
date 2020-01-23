@@ -198,15 +198,15 @@ async fn main() -> std::io::Result<()> {
                                                 // }
                                                 IcmpTypes::EchoReply => {
                                                     let src = ip4pkt.get_source();
-                                                    data_sender.send(AppData::IcmpReply(AppIcmp{src, dst, pkt_id, pkt_seq, ttl:ip4pkt.get_ttl()})).unwrap();
+                                                    data_sender.send(AppData::IcmpReply(AppIcmp{src, dst, pkt_id, pkt_seq})).unwrap();
                                                 }
                                                 IcmpTypes::TimeExceeded => {
                                                     let src = ip4pkt.get_source();
-                                                    data_sender.send(AppData::IcmpExceeded(AppIcmp{src, dst, pkt_id, pkt_seq, ttl:ip4pkt.get_ttl()})).unwrap();
+                                                    data_sender.send(AppData::IcmpExceeded(AppIcmp{src, dst, pkt_id, pkt_seq})).unwrap();
                                                 }
                                                 IcmpTypes::DestinationUnreachable => {
                                                     let src = ip4pkt.get_source();
-                                                    data_sender.send(AppData::IcmpUnreachable(AppIcmp{src, dst, pkt_id, pkt_seq, ttl:ip4pkt.get_ttl()})).unwrap();
+                                                    data_sender.send(AppData::IcmpUnreachable(AppIcmp{src, dst, pkt_id, pkt_seq})).unwrap();
                                                 }
                                                 // IcmpTypes::Traceroute => {
                                                 //     println!("=============> IcmpTypes::Traceroute <=========================")

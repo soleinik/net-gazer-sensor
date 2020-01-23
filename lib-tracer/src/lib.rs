@@ -1,4 +1,5 @@
 #[macro_use] extern crate log;
+extern crate async_std;
 //extern crate crossbeam_deque;
 //use maxminddb::geoip2;
 
@@ -8,7 +9,7 @@ use std::thread;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 
-use lib_data::{AppData, ReceiverChannel, AppTcp, AppIcmp, AppTraceRoute};
+use lib_data::{AppData, ReceiverChannel, AppTcp, AppIcmp, AppTraceRoute, AppTraceRouteTask};
 
 
 pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
@@ -41,9 +42,12 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
 
                             let trace = AppTraceRoute::new(ip, m.dst, m.id);
                             tr_map.insert(trace.get_key_with_id(), trace.clone());
+                            /* submit for trace - fire and forget... */
+                            traceroute::process(AppTraceRouteTask::from(&trace));
+
 
                             //let city: Option<geoip2::City> = reader.lookup(std::net::IpAddr::V4(msg.dst)).ok();
-                            info!("SYN    : {}", m); //,to_string(city));
+                            debug!("SYN    : {}", m); //,to_string(city));
                         }
                     }
                     AppData::SynAck(mut m) => { //inbound, use src
@@ -56,9 +60,11 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
 
                             let trace = AppTraceRoute::new(ip, m.dst, m.id);
                             tr_map.insert(trace.get_key_with_id(), trace.clone());
+                            /* submit for trace - fire and forget... */
+                            traceroute::process(AppTraceRouteTask::from(&trace));
 
                             //let city: Option<geoip2::City> = reader.lookup(std::net::IpAddr::V4(msg.dst)).ok();
-                            info!("SYN-ACK: {}", m); //,to_string(city));
+                            debug!("SYN-ACK: {}", m); //,to_string(city));
                         }
                     }
                     AppData::IcmpReply(m) => {
@@ -67,15 +73,20 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
                     }
                     AppData::IcmpExceeded(m) => {
                         if let Some(d) = tr_map.get_mut(&m.get_key_with_id()){
-                            d.add_trace(&m);
+                            if let Some(task) = d.add_trace(&msg){
+                                /* submit for trace - fire and forget... */
+                                traceroute::process(task);
+                            }
+                        }else{
+                            /* ignore aliens  */
                         }
-                        info!("ICMP-Exceeded: {}", m)
                     }
                     AppData::IcmpUnreachable(m) => {
                         if let Some(d) = tr_map.get_mut(&m.get_key_with_id()){
-                            d.add_trace(&m);
+                            d.add_trace(&msg);
+                        }else{
+                            /* ignore aliens  */
                         }
-                        info!("ICMP-unreachable: {}", m)
                     }
 
                 }

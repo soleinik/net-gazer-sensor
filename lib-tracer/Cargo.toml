@@ -12,6 +12,9 @@ lib-data = { path="../lib-data" }
 log = "0.4.8"
 pnet = "0.23"
 
+
+async-std = { version="1.4", default-features = true, features=["attributes"] }
+
 crossbeam-deque = "0.7"
 
 #maxminddb = "0.13.0"
