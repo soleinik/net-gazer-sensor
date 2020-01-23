@@ -15,7 +15,10 @@ pub fn start(rx:ReceiverChannel){
     info!("Starting tracer loop...");
     thread::spawn(move || {
 
+        // some lical net ip  and remote ip
         let mut tcp_map = HashMap::<Ipv4Addr, AppTcp>::new();
+
+
         let mut icmp_map = HashMap::<(Ipv4Addr, u16), AppIcmp>::new();
 
 

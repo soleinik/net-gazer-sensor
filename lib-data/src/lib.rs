@@ -36,6 +36,7 @@ impl AppTcp{
         AppTcp{src,dst,outbound, id:0}
     }
 
+    //always remote...
     pub fn get_key(&self) -> &Ipv4Addr { 
         if self.outbound{
             &self.dst
@@ -67,7 +68,8 @@ pub struct AppIcmp{
 }
 
 impl AppIcmp{
-    pub fn get_key(&self) -> (&Ipv4Addr,u16) { (&self.dst, self.pkt_id) }
+    //this_ip+pkt_id
+    pub fn get_key_with_id(&self) -> (&Ipv4Addr,u16) { (&self.dst, self.pkt_id) }
 
     pub fn apply(&mut self, v:&AppIcmp){
 
@@ -78,4 +80,16 @@ impl fmt::Display for AppIcmp{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} -> {} [id:{},seq:{}]", self.src, self.dst, self.pkt_id, self.pkt_seq)
     }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct AppTraceRoute{
+    // this_ip - mid - dst
+    pub dst: Ipv4Addr,
+    pub mid: Ipv4Addr, 
+    pub  id: u16
+
+    //route: local_ip + id -> dst
+    // replies come to this_ip + id. EchoRequests to dst. from this_ip with identifier=id
 }
