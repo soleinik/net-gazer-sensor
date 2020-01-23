@@ -8,7 +8,7 @@ Design daemon that seats on gateway and passively intercepts traversing traffic,
 Captured data can be:
 + graphed
 + geoiplocation enriched
-+ from elapced time between SYN and SYN-ACK derive network performance
++ from elapsed time between SYN and SYN-ACK derive network performance
 + capturing SACK (tcp retransmits) - derive network quality
 + many other things...  
 
