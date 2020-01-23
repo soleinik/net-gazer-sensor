@@ -8,10 +8,10 @@ use std::thread;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 
-use lib_data::{AppData, ReceiverChannel, AppTcp, AppIcmp};
+use lib_data::{AppData, ReceiverChannel, AppTcp, AppIcmp, AppTraceRoute};
 
 
-pub fn start(rx:ReceiverChannel){
+pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
     info!("Starting tracer loop...");
     thread::spawn(move || {
 
@@ -20,7 +20,7 @@ pub fn start(rx:ReceiverChannel){
 
 
         //local net ip+id
-        let mut tr_map = HashMap::<(Ipv4Addr, u16), AppIcmp>::new();
+        let mut tr_map = HashMap::<(Ipv4Addr, u16), AppTraceRoute>::new();
 
 
         //let reader = maxminddb::Reader::open_readfile("/usr/local/share/GeoIP/GeoIP2-City.mmdb").unwrap();
@@ -38,6 +38,10 @@ pub fn start(rx:ReceiverChannel){
                             m.id = id_seq;
                             id_seq = increment(id_seq);
                             tcp_map.insert(*m.get_key(), m.clone());
+
+                            let trace = AppTraceRoute::new(ip, m.dst, m.id);
+                            tr_map.insert(trace.get_key_with_id(), trace.clone());
+
                             //let city: Option<geoip2::City> = reader.lookup(std::net::IpAddr::V4(msg.dst)).ok();
                             info!("SYN    : {}", m); //,to_string(city));
                         }
@@ -49,6 +53,10 @@ pub fn start(rx:ReceiverChannel){
                             m.id = id_seq;
                             id_seq = increment(id_seq);
                             tcp_map.insert(*m.get_key(), m.clone());
+
+                            let trace = AppTraceRoute::new(ip, m.dst, m.id);
+                            tr_map.insert(trace.get_key_with_id(), trace.clone());
+
                             //let city: Option<geoip2::City> = reader.lookup(std::net::IpAddr::V4(msg.dst)).ok();
                             info!("SYN-ACK: {}", m); //,to_string(city));
                         }
@@ -57,13 +65,17 @@ pub fn start(rx:ReceiverChannel){
 
                         info!("ICMP-Reply: {}", m)
                     }
-                    AppData::IcmpExceeded(msg) => {
-
-                        info!("ICMP-Exceeded: {}", msg)
+                    AppData::IcmpExceeded(m) => {
+                        if let Some(d) = tr_map.get_mut(&m.get_key_with_id()){
+                            d.add_trace(&m);
+                        }
+                        info!("ICMP-Exceeded: {}", m)
                     }
-                    AppData::IcmpUnreachable(msg) => {
-
-                        info!("ICMP-unreachable: {}", msg)
+                    AppData::IcmpUnreachable(m) => {
+                        if let Some(d) = tr_map.get_mut(&m.get_key_with_id()){
+                            d.add_trace(&m);
+                        }
+                        info!("ICMP-unreachable: {}", m)
                     }
 
                 }

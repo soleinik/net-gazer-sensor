@@ -72,13 +72,13 @@ pub struct AppIcmp{
     pub dst: Ipv4Addr,
 
     pub pkt_id: u16,
-    pub pkt_seq: u16
-
+    pub pkt_seq: u16,
+    pub ttl:u8
 }
 
 impl AppIcmp{
     //this_ip+pkt_id
-    pub fn get_key_with_id(&self) -> (&Ipv4Addr,u16) { (&self.dst, self.pkt_id) }
+    pub fn get_key_with_id(&self) -> (Ipv4Addr,u16) { (self.dst, self.pkt_id) }
 
     pub fn apply(&mut self, v:&AppData){
 
@@ -87,18 +87,33 @@ impl AppIcmp{
 
 impl fmt::Display for AppIcmp{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} -> {} [id:{},seq:{}]", self.src, self.dst, self.pkt_id, self.pkt_seq)
+        write!(f, "{} -> {} [id:{},seq:{},ttl:{}]", self.src, self.dst, self.pkt_id, self.pkt_seq, self.ttl)
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct AppTraceRoute{
     // this_ip - mid - dst
+    pub src: Ipv4Addr,
     pub dst: Ipv4Addr,
-    pub mid: Ipv4Addr, 
-    pub  id: u16
+    pub trace: Vec<(u16, Ipv4Addr)>, 
+    pub pkt_id: u16,
 
+    pub ttl:u16
     //route: local_ip + id -> dst
     // replies come to this_ip + id. EchoRequests to dst. from this_ip with identifier=id
+}
+
+impl AppTraceRoute{
+    pub fn new(src: Ipv4Addr, dst: Ipv4Addr, pkt_id:u16) -> Self{
+        AppTraceRoute{src, dst, pkt_id, trace:Vec::new(), ttl:1u16}
+    }
+    pub fn get_key_with_id(&self) -> (Ipv4Addr,u16) { (self.src, self.pkt_id) }
+
+    pub fn add_trace(&mut self, ip:&AppIcmp){
+        let val = (ip.pkt_seq, ip.src);
+        if !self.trace.contains(&val){
+            self.trace.push(val);
+        }
+    }
 }

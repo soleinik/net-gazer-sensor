@@ -111,7 +111,7 @@ async fn main() -> std::io::Result<()> {
     let (data_sender, data_receiver): (lib_data::SenderChannel,lib_data::ReceiverChannel) = mpsc::channel();
 
 
-    lib_tracer::start(data_receiver);
+    lib_tracer::start(data_receiver, ip);
 
     info!("Starting listener loop...");
     loop{
@@ -177,9 +177,9 @@ async fn main() -> std::io::Result<()> {
                                         if let Some(icmp) = IcmpPacket::new(ip4pkt.payload()){
 
                                             let dst = ip4pkt.get_destination();
-                                            if ip != dst{ //only replies back to us
-                                                continue;
-                                            }
+                                            // if ip != dst{ //only replies back to us
+                                            //     continue;
+                                            // }
 
                                             let t = icmp.get_icmp_type();
 
@@ -192,17 +192,21 @@ async fn main() -> std::io::Result<()> {
                                                 };
 
                                             match t{
+                                                IcmpTypes::EchoRequest => {
+                                                    let src = ip4pkt.get_source();
+                                                    info!("ICMP-Request {} -> {} [id:{},seq:{},ttl:{}]", src, dst, pkt_id, pkt_seq, ip4pkt.get_ttl());
+                                                }
                                                 IcmpTypes::EchoReply => {
                                                     let src = ip4pkt.get_source();
-                                                    data_sender.send(AppData::IcmpReply(AppIcmp{src, dst, pkt_id, pkt_seq})).unwrap();
+                                                    data_sender.send(AppData::IcmpReply(AppIcmp{src, dst, pkt_id, pkt_seq, ttl:ip4pkt.get_ttl()})).unwrap();
                                                 }
                                                 IcmpTypes::TimeExceeded => {
                                                     let src = ip4pkt.get_source();
-                                                    data_sender.send(AppData::IcmpExceeded(AppIcmp{src, dst, pkt_id, pkt_seq})).unwrap();
+                                                    data_sender.send(AppData::IcmpExceeded(AppIcmp{src, dst, pkt_id, pkt_seq, ttl:ip4pkt.get_ttl()})).unwrap();
                                                 }
                                                 IcmpTypes::DestinationUnreachable => {
                                                     let src = ip4pkt.get_source();
-                                                    data_sender.send(AppData::IcmpUnreachable(AppIcmp{src, dst, pkt_id, pkt_seq})).unwrap();
+                                                    data_sender.send(AppData::IcmpUnreachable(AppIcmp{src, dst, pkt_id, pkt_seq, ttl:ip4pkt.get_ttl()})).unwrap();
                                                 }
                                                 IcmpTypes::Traceroute => {
                                                     println!("=============> IcmpTypes::Traceroute <=========================")
