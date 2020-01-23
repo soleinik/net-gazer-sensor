@@ -1,4 +1,5 @@
 #[macro_use] extern crate failure;
+#[macro_use] extern crate log;
 
 use std::sync::mpsc::{ Sender, Receiver };
 use std::net::Ipv4Addr;
@@ -45,15 +46,23 @@ impl AppTcp{
         }
     }
 
-    pub fn apply(&mut self, v:&AppTcp){
-        println!("apply{} to:{:?}", self, v);
+    pub fn apply(&mut self, v:&AppData){
+        match v{
+            AppData::Syn(v) => {
+                info!("ACK    : {}", self);
+            }
+            AppData::SynAck(v) => {
+                info!("SYN-ACK: {}", self);
+            }
+            _ => ()
+        }
 
     }
 }
 
 impl fmt::Display for AppTcp{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "key:{}, id:{}  {} -> {}", self.get_key(),self.id, self.src, self.dst)
+        write!(f, "key:{}, id:{}  {} -> {}", self.get_key(), self.id, self.src, self.dst)
     }
 }
 
@@ -71,7 +80,7 @@ impl AppIcmp{
     //this_ip+pkt_id
     pub fn get_key_with_id(&self) -> (&Ipv4Addr,u16) { (&self.dst, self.pkt_id) }
 
-    pub fn apply(&mut self, v:&AppIcmp){
+    pub fn apply(&mut self, v:&AppData){
 
     }
 }
