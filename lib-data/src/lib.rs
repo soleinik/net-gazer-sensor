@@ -11,16 +11,11 @@ pub use errors::*;
 pub type ReceiverChannel = Receiver<AppData>;
 pub type SenderChannel = Sender<AppData>;
 
-pub trait Data<K, V>{
-    fn get_key(&self) -> &Ipv4Addr;
-    fn apply(&mut self, v:&V);
-} 
-
-
 #[derive(Debug, Clone)]
 pub enum AppData{
     Syn(AppTcp),
     SynAck(AppTcp),
+
     IcmpReply(AppIcmp),
     IcmpExceeded(AppIcmp),
     IcmpUnreachable(AppIcmp),
@@ -30,63 +25,57 @@ pub enum AppData{
 #[derive(Debug, Clone)]
 pub struct AppTcp{
     pub src: Ipv4Addr,
-    //local
     pub dst: Ipv4Addr,
-
-    pub outbound: bool
+    pub outbound: bool,
+    
+    pub id:u16
 }
 
-impl Data<Ipv4Addr, AppData> for AppTcp{
-    fn get_key(&self) -> &Ipv4Addr { 
+impl AppTcp{
+    pub fn new(src:Ipv4Addr, dst:Ipv4Addr, outbound:bool) -> Self{
+        AppTcp{src,dst,outbound, id:0}
+    }
+
+    pub fn get_key(&self) -> &Ipv4Addr { 
         if self.outbound{
             &self.dst
         }else{
             &self.src
-
         }
     }
 
-    fn apply(&mut self, v:&AppData){
+    pub fn apply(&mut self, v:&AppTcp){
+        println!("apply{} to:{:?}", self, v);
 
     }
 }
 
 impl fmt::Display for AppTcp{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "key:{}  {} -> {}", self.get_key(), self.src, self.dst)
+        write!(f, "key:{}, id:{}  {} -> {}", self.get_key(),self.id, self.src, self.dst)
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct AppIcmp{
     pub src: Ipv4Addr,
     pub dst: Ipv4Addr,
 
-    pub outbound: bool
+    pub pkt_id: u16,
+    pub pkt_seq: u16
+
 }
 
-impl Data<Ipv4Addr, AppData> for AppIcmp{
-    fn get_key(&self) -> &Ipv4Addr { 
-        if self.outbound{
-            &self.dst
-        }else{
-            &self.src
+impl AppIcmp{
+    pub fn get_key(&self) -> (&Ipv4Addr,u16) { (&self.dst, self.pkt_id) }
 
-        }
-    }
-
-    fn apply(&mut self, v:&AppData){
+    pub fn apply(&mut self, v:&AppIcmp){
 
     }
 }
 
 impl fmt::Display for AppIcmp{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.outbound{
-            write!(f, "{} -> {}", self.src, self.dst)
-        }else {
-            write!(f, "{} -> {}", self.dst, self.src)
-        }
+        write!(f, "{} -> {} [id:{},seq:{}]", self.src, self.dst, self.pkt_id, self.pkt_seq)
     }
 }

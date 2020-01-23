@@ -71,14 +71,16 @@ async fn main() -> std::io::Result<()> {
         })
         .find(|net| net.is_some()).flatten().unwrap();
 
-
+    //need ip
+    let ip = net.ip();
+    
 
     info!("Setting up interceptor on {} [{}]", net_iface.name, mac);
     info!("Detected networks:");
     net_iface.ips.iter()
         .for_each(|net| println!("\tnet:{}", net));
 
-
+    info!("net:{}", net);
         
     let cfg = linux::Config::default();
     // cfg.fanout = Some(
@@ -158,9 +160,9 @@ async fn main() -> std::io::Result<()> {
                                             let outbound = net.contains(src);
 
                                             if !has_bit(flags, Flags::ACK){//SYN flag
-                                                data_sender.send(AppData::Syn(   AppTcp{src, dst, outbound})).unwrap();
+                                                data_sender.send(AppData::Syn(   AppTcp::new(src, dst, outbound))).unwrap();
                                             }else{  //SYN-ACK
-                                                data_sender.send(AppData::SynAck(AppTcp{src, dst, outbound})).unwrap();
+                                                data_sender.send(AppData::SynAck(AppTcp::new(src, dst, outbound))).unwrap();
                                             }
 
                                             continue;
@@ -174,30 +176,36 @@ async fn main() -> std::io::Result<()> {
                                     IpNextHeaderProtocols::Icmp => {
                                         if let Some(icmp) = IcmpPacket::new(ip4pkt.payload()){
 
-                                            let src = ip4pkt.get_source();
-                                            
-                                            if net.contains(src){//outbound, originated from local network
+                                            let dst = ip4pkt.get_destination();
+                                            if ip != dst{ //only replies back to us
                                                 continue;
                                             }
 
                                             let t = icmp.get_icmp_type();
 
+                                            use pnet::packet::icmp::echo_reply::EchoReplyPacket;
+                                            let (pkt_id, pkt_seq) = 
+                                                if let Some(r) = EchoReplyPacket::new(icmp.payload()){
+                                                    (r.get_identifier(),r.get_sequence_number())
+                                                }else{
+                                                    (std::u16::MAX,std::u16::MAX)
+                                                };
 
                                             match t{
                                                 IcmpTypes::EchoReply => {
-                                                    let dst = ip4pkt.get_destination();
-                                                    data_sender.send(AppData::IcmpReply(AppIcmp{src, dst, outbound:false})).unwrap();
-                    
+                                                    let src = ip4pkt.get_source();
+                                                    data_sender.send(AppData::IcmpReply(AppIcmp{src, dst, pkt_id, pkt_seq})).unwrap();
                                                 }
                                                 IcmpTypes::TimeExceeded => {
-                                                    let dst = ip4pkt.get_destination();
-                                                    data_sender.send(AppData::IcmpExceeded(AppIcmp{src, dst, outbound:false})).unwrap();
-                    
+                                                    let src = ip4pkt.get_source();
+                                                    data_sender.send(AppData::IcmpExceeded(AppIcmp{src, dst, pkt_id, pkt_seq})).unwrap();
                                                 }
                                                 IcmpTypes::DestinationUnreachable => {
-                                                    let dst = ip4pkt.get_destination();
-                                                    data_sender.send(AppData::IcmpUnreachable(AppIcmp{src, dst, outbound:false})).unwrap();
-                    
+                                                    let src = ip4pkt.get_source();
+                                                    data_sender.send(AppData::IcmpUnreachable(AppIcmp{src, dst, pkt_id, pkt_seq})).unwrap();
+                                                }
+                                                IcmpTypes::Traceroute => {
+                                                    println!("=============> IcmpTypes::Traceroute <=========================")
                                                 }
                                                 _ => {
                                                     println!("icmp type:{:?}", t);
