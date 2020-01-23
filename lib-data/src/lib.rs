@@ -49,10 +49,10 @@ impl AppTcp{
     pub fn apply(&mut self, v:&AppData){
         match v{
             AppData::Syn(v) => {
-                info!("ACK    : {}", self);
+                debug!("ACK    : {}", self);
             }
             AppData::SynAck(v) => {
-                info!("SYN-ACK: {}", self);
+                debug!("SYN-ACK: {}", self);
             }
             _ => ()
         }
@@ -72,8 +72,7 @@ pub struct AppIcmp{
     pub dst: Ipv4Addr,
 
     pub pkt_id: u16,
-    pub pkt_seq: u16,
-    pub ttl:u8
+    pub pkt_seq: u16
 }
 
 impl AppIcmp{
@@ -87,7 +86,7 @@ impl AppIcmp{
 
 impl fmt::Display for AppIcmp{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} -> {} [id:{},seq:{},ttl:{}]", self.src, self.dst, self.pkt_id, self.pkt_seq, self.ttl)
+        write!(f, "{} -> {} [id:{},seq:{}]", self.src, self.dst, self.pkt_id, self.pkt_seq)
     }
 }
 
@@ -96,7 +95,7 @@ pub struct AppTraceRoute{
     // this_ip - mid - dst
     pub src: Ipv4Addr,
     pub dst: Ipv4Addr,
-    pub trace: Vec<(u16, Ipv4Addr)>, 
+    pub trace: Vec<(u16, Ipv4Addr)>, //( id, hop )
     pub pkt_id: u16,
 
     pub ttl:u16
@@ -106,14 +105,55 @@ pub struct AppTraceRoute{
 
 impl AppTraceRoute{
     pub fn new(src: Ipv4Addr, dst: Ipv4Addr, pkt_id:u16) -> Self{
-        AppTraceRoute{src, dst, pkt_id, trace:Vec::new(), ttl:1u16}
+        AppTraceRoute{src, dst, pkt_id, trace:Vec::new(), ttl:0u16}
     }
     pub fn get_key_with_id(&self) -> (Ipv4Addr,u16) { (self.src, self.pkt_id) }
 
-    pub fn add_trace(&mut self, ip:&AppIcmp){
-        let val = (ip.pkt_seq, ip.src);
-        if !self.trace.contains(&val){
-            self.trace.push(val);
+    pub fn add_trace(&mut self, data:&AppData) -> Option<AppTraceRouteTask>{
+
+        match data{
+            AppData::IcmpExceeded(m)  => {
+                debug!("ICMP-Exceeded: {}", m);
+                let val = (m.pkt_seq, m.src);
+                if !self.trace.contains(&val){
+                    self.trace.push(val); //self.trace.len() + 1 = next ttl
+                    return Some(AppTraceRouteTask::from(&*self));
+                }
+            }
+            AppData::IcmpUnreachable(m)  =>{
+                debug!("ICMP-unreachable: {}", m);
+                let val = (m.pkt_seq, m.src);
+                if !self.trace.contains(&val){
+                    self.trace.push(val);
+                }
+            }
+            _ => ()
+        }
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct AppTraceRouteTask{
+    pub src: Ipv4Addr,
+    pub dst: Ipv4Addr,
+
+    pub pkt_id: u16,
+    pub pkt_seq: u16,
+
+    pub ttl:u16
+}
+
+impl From<&AppTraceRoute> for AppTraceRouteTask {
+    fn from(from: &AppTraceRoute) -> Self {
+        
+        AppTraceRouteTask{
+            src:from.src,
+            dst:from.dst,
+            pkt_id: from.pkt_id,
+            pkt_seq: from.trace.len() as u16,
+            ttl: from.ttl
         }
     }
 }
