@@ -11,6 +11,10 @@ use pnet::util;
 use lib_data::{AppResult, AppTraceRouteTask};
 use async_std::task;
 
+/* 
+create_icmp_packet function is stolen from 
+    https://codereview.stackexchange.com/questions/208875/traceroute-implementation-in-rust
+*/
 
 static IPV4_HEADER_LEN: usize = 21;
 static ICMP_HEADER_LEN: usize = 8;
