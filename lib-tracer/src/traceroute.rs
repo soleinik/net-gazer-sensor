@@ -56,7 +56,7 @@ use pnet::transport::{transport_channel, TransportChannelType::Layer3};
 pub fn process(task:AppTraceRouteTask){
 
     task::spawn(async move {
-        //debug!("Tracing {} from {} with id:{} and ttl:{}", task.dst, task.src, task.pkt_id, task.ttl);
+        debug!("Sending probe {} from {} with id/seq/ttl:{}/{}/{}", task.dst, task.src, task.pkt_id, task.pkt_seq, task.ttl);
         //FIXME - reuse buffer. ThreadLocal?
         let mut buffer_ip = [0u8; 40];
         let mut buffer_icmp = [0u8; MutableEchoRequestPacket::minimum_packet_size()];

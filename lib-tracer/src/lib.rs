@@ -74,8 +74,7 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
                         }
                     }
                     AppData::IcmpReply(m) => {
-
-                        debug!("ICMP-Reply: {}", m);
+                        trace!("ICMP-Reply: {}", m);
 
                         if let Some(d) = tr_map.get_mut(&m.get_key()){
                             if let Some(task) = d.add_trace(&msg){
@@ -88,7 +87,7 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
 
                     }
                     AppData::IcmpExceeded(m) => {
-                        debug!("ICMP-Exceeded: {}", m);
+                        trace!("ICMP-Exceeded: {}", m);
 
                         if let Some(d) = tr_map.get_mut(&m.get_key()){
                             if let Some(task) = d.add_trace(&msg){
@@ -100,7 +99,8 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
                         }
                     }
                     AppData::IcmpUnreachable(m) => {
-                        info!("ICMP-Unreachable: {}", m);
+                        trace!("ICMP-Unreachable: {}", m);
+                        
                         if let Some(d) = tr_map.get_mut(&m.get_key()){
                             d.add_trace(&msg);
                         }else{

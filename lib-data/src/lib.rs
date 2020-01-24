@@ -4,6 +4,7 @@
 use std::sync::mpsc::{ Sender, Receiver };
 use std::net::Ipv4Addr;
 use std::fmt;
+use std::collections::BTreeSet;
 mod errors;
 
 pub use errors::*;
@@ -89,7 +90,7 @@ impl AppIcmp{
 
 impl fmt::Display for AppIcmp{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} -> {} -> {} [id:{},seq:{}, reverse ttl:{}]", self.src, self.hop, self.dst, self.pkt_id, self.pkt_seq, self.ttl)
+        write!(f, "{} -> {} -> {} [id:{},seq/ttl:{}, reverse ttl:{}]", self.src, self.hop, self.dst, self.pkt_id, self.pkt_seq, self.ttl)
     }
 }
 
@@ -98,29 +99,39 @@ pub struct AppTraceRoute{
     // this_ip - mid - dst
     pub src: Ipv4Addr,
     pub dst: Ipv4Addr,
-    pub trace: Vec<Ipv4Addr>,
+    pub trace: BTreeSet<AppHop>,
     pub pkt_id: u16,
 
-    pub ttl:u8
+    pub ttl:u8,
+    pub completed:bool
     //route: local_ip + id -> dst
     // replies come to this_ip + id. EchoRequests to dst. from this_ip with identifier=id
 }
 
 impl AppTraceRoute{
     pub fn new(src: Ipv4Addr, dst: Ipv4Addr, pkt_id:u16) -> Self{
-        //ttl=64 will be ICMP Ping
-        //AppTraceRoute{src, dst, pkt_id, trace:Vec::new(), ttl:std::u8::MAX}
-        AppTraceRoute{src, dst, pkt_id, trace:Vec::new(), ttl:1u8}
+        AppTraceRoute{src, dst, pkt_id, trace:BTreeSet::<AppHop>::new(), ttl:1u8, completed:false}
     }
     pub fn get_key(&self) -> Ipv4Addr { self.dst }
 
     pub fn add_trace(&mut self, data:&AppData) -> Option<AppTraceRouteTask>{
 
         match data{
+            AppData::IcmpReply(m)  =>{
+                debug!("ICMP-Reply: {}", m);
+                let hop = AppHop::new(m.ttl, m.hop);
+                if !self.trace.contains(&hop){
+                    self.trace.insert(hop);
+                    info!("start {}", self);
+                    return None;
+                }
+            }
             AppData::IcmpExceeded(m)  => {
                 debug!("ICMP-Exceeded: {}", m);
-                if !self.trace.contains(&m.hop){
-                    self.trace.push(m.hop); //self.trace.len() + 1 = next ttl
+
+                let hop = AppHop::new(m.pkt_seq as u8, m.hop); //pkt.ttl is reverse ttl and is not reliable...
+                if !self.trace.contains(&hop){
+                    self.trace.insert(hop); //self.trace.len() + 1 = next ttl
                     self.ttl += 1;
                     info!("{}", self);
                     return Some(AppTraceRouteTask::from(&*self));
@@ -128,17 +139,11 @@ impl AppTraceRoute{
             }
             AppData::IcmpUnreachable(m)  =>{
                 debug!("ICMP-Unreachable: {}", m);
-                if !self.trace.contains(&m.hop){
-                    self.trace.push(m.hop);
+                let hop = AppHop::new(m.ttl, m.hop);
+                if !self.trace.contains(&hop){
+                    self.trace.insert(hop);
+                    self.completed = true; //maybe compare hope to dst...
                     info!("done {}", self);
-                }
-            }
-            AppData::IcmpReply(m)  =>{
-                debug!("ICMP-Reply: {}", m);
-                if !self.trace.contains(&m.hop){
-                    self.trace.push(m.hop);
-                    info!("start {}", self);
-                    return None;
                 }
             }
             _ => ()
@@ -148,7 +153,11 @@ impl AppTraceRoute{
 }
 impl fmt::Display for AppTraceRoute{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "route:{} -> {:?} -> {} [id:{},seq:{}]", self.src, self.trace, self.dst, self.pkt_id, self.ttl)
+        let trace = self.trace.iter()
+            .map(|e|format!("{}, ", e))
+            .fold(String::new(), |mut a, e| {a.push_str(&e); a})
+            ;
+        write!(f, "route: {} -> [{}] -> {} [id:{}, next seq/ttl:{}]", self.src, trace, self.dst, self.pkt_id, self.ttl)
     }
 }
 
@@ -171,8 +180,27 @@ impl From<&AppTraceRoute> for AppTraceRouteTask {
             src:from.src,
             dst:from.dst,
             pkt_id: from.pkt_id,
-            pkt_seq: from.trace.len() as u16,
+            pkt_seq: from.ttl as u16, //from.trace.len() as u16,
             ttl: from.ttl
         }
     }
 }
+
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub struct AppHop{
+    pub ttl:u8,
+    pub hop: Ipv4Addr,
+
+}
+impl AppHop{
+    pub fn new(ttl:u8, hop:Ipv4Addr) -> Self{
+        AppHop{ttl, hop}
+    }
+}
+impl fmt::Display for AppHop{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{}", self.ttl, self.hop)
+    }
+}
+
+
