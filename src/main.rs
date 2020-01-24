@@ -8,6 +8,10 @@ use pnet::packet::Packet;
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::icmp::{IcmpPacket, IcmpTypes};
+use pnet::packet::icmp::echo_reply::EchoReplyPacket;
+use pnet::packet::icmp::time_exceeded::TimeExceededPacket;
+use pnet::packet::icmp::echo_request::EchoRequestPacket;
+use pnet::packet::icmp::destination_unreachable::DestinationUnreachablePacket;
 use pnet::packet::tcp::TcpOptionNumbers;
 
 //use async_std::prelude::*;
@@ -124,8 +128,8 @@ async fn main() -> std::io::Result<()> {
                         EtherTypes::Ipv4 => {
                             if let Some(ip4pkt) = Ipv4Packet::new(ethernet_packet.payload()){
 
-                                let next_proto = ip4pkt.get_next_level_protocol();
-                                match next_proto{
+                                match ip4pkt.get_next_level_protocol(){
+
                                     IpNextHeaderProtocols::Tcp => {
                                         if let Some(tcp) = TcpPacket::new(ip4pkt.payload()){
                                             let flags = tcp.get_flags();
@@ -135,7 +139,7 @@ async fn main() -> std::io::Result<()> {
                                                 let dst_port = tcp.get_destination();
                                                 let src = ip4pkt.get_source();
                                                 let dst = ip4pkt.get_destination();
-                                                warn!("source overloaded {}:{} -> {}:{}. Application performance issues?", src,src_port, dst, dst_port);
+                                                trace!("source overloaded {}:{} -> {}:{}. Application performance issues?", src,src_port, dst, dst_port);
                                             }
 
                                             if tcp.get_options_iter().any(|o| o.get_number() == TcpOptionNumbers::SACK){
@@ -147,7 +151,7 @@ async fn main() -> std::io::Result<()> {
 
                                                 let src = ip4pkt.get_source();
                                                 let dst = ip4pkt.get_destination();
-                                                warn!("re-transmission request detected: {}:{} -> {}:{}. Connection quality issues?", src,src_port, dst, dst_port);
+                                                trace!("re-transmission request detected: {}:{} -> {}:{}. Connection quality issues?", src,src_port, dst, dst_port);
                                             }
 
                                             //SYN, SYN-ACK, ACK, u16
@@ -174,45 +178,85 @@ async fn main() -> std::io::Result<()> {
                                         continue
                                     }
                                     IpNextHeaderProtocols::Icmp => {
+
                                         if let Some(icmp) = IcmpPacket::new(ip4pkt.payload()){
+
 
                                             let dst = ip4pkt.get_destination();
                                             if ip != dst{ //only replies back to us
                                                 continue;
                                             }
 
-                                            let t = icmp.get_icmp_type();
-
-                                            use pnet::packet::icmp::echo_reply::EchoReplyPacket;
-                                            let (pkt_id, pkt_seq) = 
-                                                if let Some(r) = EchoReplyPacket::new(icmp.payload()){
-                                                    (r.get_identifier(),r.get_sequence_number())
-                                                }else{
-                                                    (std::u16::MAX,std::u16::MAX)
-                                                };
-
-                                            match t{
+                                            match icmp.get_icmp_type(){
                                                 // IcmpTypes::EchoRequest => {
                                                 //     let src = ip4pkt.get_source();
                                                 //     info!("ICMP-Request {} -> {} [id:{},seq:{},ttl:{}]", src, dst, pkt_id, pkt_seq, ip4pkt.get_ttl());
                                                 // }
                                                 IcmpTypes::EchoReply => {
-                                                    let src = ip4pkt.get_source();
-                                                    data_sender.send(AppData::IcmpReply(AppIcmp{src, dst, pkt_id, pkt_seq})).unwrap();
+
+                                                    if let Some(echo) = EchoReplyPacket::new(ip4pkt.payload()){
+
+                                                        let src = ip4pkt.get_destination();
+                                                        let dst = ip4pkt.get_source();
+                                                        let ttl = ip4pkt.get_ttl();
+
+                                                        let pkt_id = echo.get_identifier();
+                                                        let pkt_seq =echo.get_sequence_number();
+
+                                                        data_sender.send(
+                                                            AppData::IcmpReply(AppIcmp{src, dst, hop:dst, pkt_id, pkt_seq, ttl})
+                                                        ).unwrap();
+    
+                                                    }
                                                 }
                                                 IcmpTypes::TimeExceeded => {
-                                                    let src = ip4pkt.get_source();
-                                                    data_sender.send(AppData::IcmpExceeded(AppIcmp{src, dst, pkt_id, pkt_seq})).unwrap();
+
+                                                    if let Some(timeex_pkt) =  TimeExceededPacket::new(ip4pkt.payload()){
+                                                        let hop = ip4pkt.get_source();
+                                                        let src = ip4pkt.get_destination(); //this ip
+                                                        let ttl = ip4pkt.get_ttl();
+
+                                                        if let Some(ip4_hdr) =  Ipv4Packet::new(timeex_pkt.payload()){
+                                                            let dst = ip4_hdr.get_destination(); //intended 
+                                                            if let Some(echoreq_pkt) = EchoRequestPacket::new(ip4_hdr.payload()){
+
+                                                                let pkt_id = echoreq_pkt.get_identifier();
+                                                                let pkt_seq =echoreq_pkt.get_sequence_number();
+
+                                                                data_sender.send(AppData::IcmpExceeded(
+                                                                    AppIcmp{src, dst, hop,  pkt_id, pkt_seq, ttl})
+                                                                ).unwrap();
+
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                                 IcmpTypes::DestinationUnreachable => {
-                                                    let src = ip4pkt.get_source();
-                                                    data_sender.send(AppData::IcmpUnreachable(AppIcmp{src, dst, pkt_id, pkt_seq})).unwrap();
+                                                    //println!("=============> IcmpTypes::DestinationUnreachable {}<=========================", ip4pkt.get_source());
+
+                                                    if let Some(unreach_pkt) =  DestinationUnreachablePacket::new(ip4pkt.payload()){
+                                                        let hop = ip4pkt.get_source();
+                                                        let src = ip4pkt.get_destination(); //this ip
+                                                        let ttl = ip4pkt.get_ttl();
+                                                        if let Some(ip4_hdr) =  Ipv4Packet::new(unreach_pkt.payload()){
+                                                            let dst = ip4_hdr.get_destination(); //intended 
+                                                            if let Some(echoreq_pkt) = EchoRequestPacket::new(ip4_hdr.payload()){
+                                                                let pkt_id = echoreq_pkt.get_identifier();
+                                                                let pkt_seq =echoreq_pkt.get_sequence_number();
+
+                                                                data_sender.send(
+                                                                    AppData::IcmpUnreachable(AppIcmp{src, dst, hop, pkt_id, pkt_seq, ttl})
+                                                                ).unwrap();
+                                                            }
+
+                                                        }
+                                                    }
                                                 }
                                                 // IcmpTypes::Traceroute => {
                                                 //     println!("=============> IcmpTypes::Traceroute <=========================")
                                                 // }
                                                 _ => {
-                                                    println!("icmp type:{:?}", t);
+                                                    println!("icmp type:{:?}",icmp.get_icmp_type());
                                                     continue
                                                 }
                                             }

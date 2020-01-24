@@ -2,7 +2,7 @@ use std::net::Ipv4Addr;
 
 use pnet::packet::icmp::{IcmpTypes};
 
-use pnet::packet::MutablePacket;
+use pnet::packet::{Packet, MutablePacket};
 use pnet::packet::ipv4::MutableIpv4Packet;
 use  pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::icmp::echo_request::MutableEchoRequestPacket;
@@ -34,16 +34,15 @@ pub fn create_icmp_packet<'a>( buffer_ip: &'a mut [u8], buffer_icmp: &'a mut [u8
     ipv4_packet.set_source(src);
     ipv4_packet.set_destination(dest);
 
-
+    
     /* icmp */
     let mut icmp_packet = MutableEchoRequestPacket::new(buffer_icmp).unwrap();
     icmp_packet.set_icmp_type(IcmpTypes::EchoRequest);
 
-    icmp_packet.set_identifier(id);
-    icmp_packet.set_sequence_number(ttl as u16);
+    icmp_packet.set_identifier(id); //host order
+    icmp_packet.set_sequence_number(ttl as u16); //host order
 
-    
-    let checksum = util::checksum(&icmp_packet.packet_mut(), 2);
+    let checksum = util::checksum(icmp_packet.packet(), 1);
     icmp_packet.set_checksum(checksum);
 
     /* set payload */
@@ -52,13 +51,33 @@ pub fn create_icmp_packet<'a>( buffer_ip: &'a mut [u8], buffer_icmp: &'a mut [u8
 }
 
 
+use pnet::transport::{transport_channel, TransportChannelType::Layer3};
 
 pub fn process(task:AppTraceRouteTask){
 
-    //JoinHandle<T> let child = 
     task::spawn(async move {
-        info!("Tracing {} from {} with id:{} and ttl:{}", task.dst, task.src, task.pkt_id, task.ttl + 1);
-        //let pkt = create_icmp_packet();
+        //debug!("Tracing {} from {} with id:{} and ttl:{}", task.dst, task.src, task.pkt_id, task.ttl);
+        //FIXME - reuse buffer. ThreadLocal?
+        let mut buffer_ip = [0u8; 40];
+        let mut buffer_icmp = [0u8; MutableEchoRequestPacket::minimum_packet_size()];
+
+        //let msg = String::from("hello");
+        //let mut buffer_icmp = msg.into_bytes();
+
+        let pkt = create_icmp_packet(&mut buffer_ip, &mut buffer_icmp, task.src, task.dst, task.pkt_id, task.ttl).unwrap();
+
+        let protocol = Layer3(IpNextHeaderProtocols::Icmp);
+
+        if let Ok((mut tx, _)) = transport_channel(1024, protocol){
+
+            if tx.send_to(pkt, std::net::IpAddr::V4(task.dst)).is_ok(){
+                trace!("pkt sent to {} id:{} seq:{}, ttl:{}",  task.dst, task.pkt_id, task.pkt_seq, task.ttl);
+            }else{
+                error!("failed to send packet to {}", task.dst);
+            }
+
+        }
+
     });
 
     
