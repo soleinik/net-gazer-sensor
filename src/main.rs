@@ -6,13 +6,16 @@ use pnet::packet::ethernet::{EthernetPacket, EtherTypes};
 use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::Packet;
 use pnet::packet::ip::IpNextHeaderProtocols;
-use pnet::packet::tcp::TcpPacket;
-use pnet::packet::icmp::{IcmpPacket, IcmpTypes};
-use pnet::packet::icmp::echo_reply::EchoReplyPacket;
-use pnet::packet::icmp::time_exceeded::TimeExceededPacket;
-use pnet::packet::icmp::echo_request::EchoRequestPacket;
-use pnet::packet::icmp::destination_unreachable::DestinationUnreachablePacket;
-use pnet::packet::tcp::TcpOptionNumbers;
+use pnet::packet::tcp::{TcpPacket, TcpOptionNumbers};
+use pnet::packet::icmp::{
+    IcmpPacket, IcmpTypes, 
+    echo_reply::EchoReplyPacket, 
+    time_exceeded::TimeExceededPacket, 
+    echo_request::EchoRequestPacket, 
+    destination_unreachable::DestinationUnreachablePacket
+};
+
+use std::time::Instant;
 
 //use async_std::prelude::*;
 
@@ -164,9 +167,9 @@ async fn main() -> std::io::Result<()> {
                                             let outbound = net.contains(src);
 
                                             if !has_bit(flags, Flags::ACK){//SYN flag
-                                                data_sender.send(AppData::Syn(   AppTcp::new(src, dst, outbound))).unwrap();
+                                                data_sender.send(AppData::Syn(   AppTcp::new(src, dst, outbound, Some(Instant::now()), None))).unwrap();
                                             }else{  //SYN-ACK
-                                                data_sender.send(AppData::SynAck(AppTcp::new(src, dst, outbound))).unwrap();
+                                                data_sender.send(AppData::SynAck(AppTcp::new(src, dst, outbound, None, Some(Instant::now())))).unwrap();
                                             }
 
                                             continue;
@@ -214,17 +217,19 @@ async fn main() -> std::io::Result<()> {
                                                     if let Some(timeex_pkt) =  TimeExceededPacket::new(ip4pkt.payload()){
                                                         let hop = ip4pkt.get_source();
                                                         let src = ip4pkt.get_destination(); //this ip
-                                                        let ttl = ip4pkt.get_ttl();
 
                                                         if let Some(ip4_hdr) =  Ipv4Packet::new(timeex_pkt.payload()){
+
                                                             let dst = ip4_hdr.get_destination(); //intended 
+                                                            let ttl = ip4_hdr.get_ttl(); //this is not reliable... will use seq
+
                                                             if let Some(echoreq_pkt) = EchoRequestPacket::new(ip4_hdr.payload()){
 
                                                                 let pkt_id = echoreq_pkt.get_identifier();
                                                                 let pkt_seq =echoreq_pkt.get_sequence_number();
 
                                                                 data_sender.send(AppData::IcmpExceeded(
-                                                                    AppIcmp{src, dst, hop,  pkt_id, pkt_seq, ttl})
+                                                                    AppIcmp{src, dst, hop, pkt_id, pkt_seq, ttl})
                                                                 ).unwrap();
 
                                                             }
@@ -237,9 +242,9 @@ async fn main() -> std::io::Result<()> {
                                                     if let Some(unreach_pkt) =  DestinationUnreachablePacket::new(ip4pkt.payload()){
                                                         let hop = ip4pkt.get_source();
                                                         let src = ip4pkt.get_destination(); //this ip
-                                                        let ttl = ip4pkt.get_ttl();
                                                         if let Some(ip4_hdr) =  Ipv4Packet::new(unreach_pkt.payload()){
                                                             let dst = ip4_hdr.get_destination(); //intended 
+                                                            let ttl = ip4_hdr.get_ttl();
                                                             if let Some(echoreq_pkt) = EchoRequestPacket::new(ip4_hdr.payload()){
                                                                 let pkt_id = echoreq_pkt.get_identifier();
                                                                 let pkt_seq =echoreq_pkt.get_sequence_number();
