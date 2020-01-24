@@ -16,13 +16,13 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
     info!("Starting tracer loop...");
     thread::spawn(move || {
 
+        //TODO: eviction policy
         // some local net ip  and remote ip
         let mut tcp_map = HashMap::<Ipv4Addr, AppTcp>::new();
 
-
-        //local net ip+id
+        //TODO: eviction policy
+        //dst as key
         let mut tr_map = HashMap::<Ipv4Addr, AppTraceRoute>::new();
-
 
         //let reader = maxminddb::Reader::open_readfile("/usr/local/share/GeoIP/GeoIP2-City.mmdb").unwrap();
         //let reader = maxminddb::Reader::open_readfile("/usr/share/GeoIP/GeoLite2-City.mmdb").unwrap();
@@ -100,7 +100,7 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
                     }
                     AppData::IcmpUnreachable(m) => {
                         trace!("ICMP-Unreachable: {}", m);
-                        
+
                         if let Some(d) = tr_map.get_mut(&m.get_key()){
                             d.add_trace(&msg);
                         }else{

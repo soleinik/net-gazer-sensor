@@ -6,13 +6,16 @@ use pnet::packet::ethernet::{EthernetPacket, EtherTypes};
 use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::Packet;
 use pnet::packet::ip::IpNextHeaderProtocols;
-use pnet::packet::tcp::TcpPacket;
-use pnet::packet::icmp::{IcmpPacket, IcmpTypes};
-use pnet::packet::icmp::echo_reply::EchoReplyPacket;
-use pnet::packet::icmp::time_exceeded::TimeExceededPacket;
-use pnet::packet::icmp::echo_request::EchoRequestPacket;
-use pnet::packet::icmp::destination_unreachable::DestinationUnreachablePacket;
-use pnet::packet::tcp::TcpOptionNumbers;
+use pnet::packet::tcp::{TcpPacket, TcpOptionNumbers};
+use pnet::packet::icmp::{
+    IcmpPacket, IcmpTypes, 
+    echo_reply::EchoReplyPacket, 
+    time_exceeded::TimeExceededPacket, 
+    echo_request::EchoRequestPacket, 
+    destination_unreachable::DestinationUnreachablePacket
+};
+
+use std::time::Instant;
 
 //use async_std::prelude::*;
 
@@ -164,9 +167,9 @@ async fn main() -> std::io::Result<()> {
                                             let outbound = net.contains(src);
 
                                             if !has_bit(flags, Flags::ACK){//SYN flag
-                                                data_sender.send(AppData::Syn(   AppTcp::new(src, dst, outbound))).unwrap();
+                                                data_sender.send(AppData::Syn(   AppTcp::new(src, dst, outbound, Some(Instant::now()), None))).unwrap();
                                             }else{  //SYN-ACK
-                                                data_sender.send(AppData::SynAck(AppTcp::new(src, dst, outbound))).unwrap();
+                                                data_sender.send(AppData::SynAck(AppTcp::new(src, dst, outbound, None, Some(Instant::now())))).unwrap();
                                             }
 
                                             continue;

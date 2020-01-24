@@ -5,6 +5,8 @@ use std::sync::mpsc::{ Sender, Receiver };
 use std::net::Ipv4Addr;
 use std::fmt;
 use std::collections::BTreeSet;
+use std::time::{Duration, Instant};
+
 mod errors;
 
 pub use errors::*;
@@ -30,12 +32,15 @@ pub struct AppTcp{
     pub dst: Ipv4Addr,
     pub outbound: bool,
     
-    pub id:u16
+    pub id:u16,
+
+    pub syn_ts: Option<Instant>,
+    pub synack_ts: Option<Instant>,
 }
 
 impl AppTcp{
-    pub fn new(src:Ipv4Addr, dst:Ipv4Addr, outbound:bool) -> Self{
-        AppTcp{src,dst,outbound, id:0}
+    pub fn new(src:Ipv4Addr, dst:Ipv4Addr, outbound:bool, syn_ts:Option<Instant>, synack_ts:Option<Instant>) -> Self{
+        AppTcp{src,dst,outbound, id:0, syn_ts, synack_ts}
     }
 
     //always remote...
@@ -50,9 +55,12 @@ impl AppTcp{
     pub fn apply(&mut self, v:&AppData){
         match v{
             AppData::Syn(v) => {
+
+                self.syn_ts = v.syn_ts.or(self.syn_ts);
                 debug!("ACK    : {}", self);
             }
             AppData::SynAck(v) => {
+                self.synack_ts = v.synack_ts.or(self.synack_ts);
                 debug!("SYN-ACK: {}", self);
             }
             _ => ()
@@ -63,7 +71,8 @@ impl AppTcp{
 
 impl fmt::Display for AppTcp{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "key:{}, id:{}  {} -> {}", self.get_key(), self.id, self.src, self.dst)
+        let elapsed = self.synack_ts.and_then(|sa|self.syn_ts.map(|s| sa.duration_since(s)) );
+        write!(f, "key:{}, id:{}  {} -> {}, elapsed:{:?}", self.get_key(), self.id, self.src, self.dst, elapsed)
     }
 }
 
