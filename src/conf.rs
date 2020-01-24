@@ -19,7 +19,7 @@ pub struct OptConf {
 
     // the long option will be translated by default to kebab case,
     // i.e. `--nb-cars`.
-    /// target network interface
+    /// target network interface. If not provided - first active interface with ipv4 will be used
     #[structopt(short = "i", long = "iface", env = "NG_IFACE")]
     pub iface: Option<String>,
 

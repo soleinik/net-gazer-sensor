@@ -9,7 +9,7 @@ use std::thread;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 
-use lib_data::{AppData, ReceiverChannel, AppTcp, AppIcmp, AppTraceRoute, AppTraceRouteTask};
+use lib_data::{AppData, ReceiverChannel, AppTcp, AppTraceRoute, AppTraceRouteTask};
 
 
 pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
@@ -21,7 +21,7 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
 
 
         //local net ip+id
-        let mut tr_map = HashMap::<(Ipv4Addr, u16), AppTraceRoute>::new();
+        let mut tr_map = HashMap::<Ipv4Addr, AppTraceRoute>::new();
 
 
         //let reader = maxminddb::Reader::open_readfile("/usr/local/share/GeoIP/GeoIP2-City.mmdb").unwrap();
@@ -41,13 +41,16 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
                             tcp_map.insert(*m.get_key(), m.clone());
 
                             let trace = AppTraceRoute::new(ip, m.dst, m.id);
-                            tr_map.insert(trace.get_key_with_id(), trace.clone());
-                            /* submit for trace - fire and forget... */
-                            traceroute::process(AppTraceRouteTask::from(&trace));
+                            tr_map.insert(trace.get_key(), trace);
 
 
                             //let city: Option<geoip2::City> = reader.lookup(std::net::IpAddr::V4(msg.dst)).ok();
                             debug!("SYN    : {}", m); //,to_string(city));
+
+                            /* submit for trace - fire and forget... */
+                            if let Some(trace) = tr_map.get(&m.get_key()){
+                                traceroute::process(AppTraceRouteTask::from(trace));
+                            }
                         }
                     }
                     AppData::SynAck(mut m) => { //inbound, use src
@@ -59,20 +62,35 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
                             tcp_map.insert(*m.get_key(), m.clone());
 
                             let trace = AppTraceRoute::new(ip, m.dst, m.id);
-                            tr_map.insert(trace.get_key_with_id(), trace.clone());
-                            /* submit for trace - fire and forget... */
-                            traceroute::process(AppTraceRouteTask::from(&trace));
+                            tr_map.insert(trace.get_key(), trace);
 
                             //let city: Option<geoip2::City> = reader.lookup(std::net::IpAddr::V4(msg.dst)).ok();
                             debug!("SYN-ACK: {}", m); //,to_string(city));
+
+                            /* submit for trace - fire and forget... */
+                            if let Some(trace) = tr_map.get(&m.get_key()){
+                                traceroute::process(AppTraceRouteTask::from(trace));
+                            }
                         }
                     }
                     AppData::IcmpReply(m) => {
 
-                        info!("ICMP-Reply: {}", m)
+                        debug!("ICMP-Reply: {}", m);
+
+                        if let Some(d) = tr_map.get_mut(&m.get_key()){
+                            if let Some(task) = d.add_trace(&msg){
+                                /* submit for trace - fire and forget... */
+                                traceroute::process(task);
+                            }
+                        }else{
+                            /* ignore aliens  */
+                        }
+
                     }
                     AppData::IcmpExceeded(m) => {
-                        if let Some(d) = tr_map.get_mut(&m.get_key_with_id()){
+                        debug!("ICMP-Exceeded: {}", m);
+
+                        if let Some(d) = tr_map.get_mut(&m.get_key()){
                             if let Some(task) = d.add_trace(&msg){
                                 /* submit for trace - fire and forget... */
                                 traceroute::process(task);
@@ -82,7 +100,8 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
                         }
                     }
                     AppData::IcmpUnreachable(m) => {
-                        if let Some(d) = tr_map.get_mut(&m.get_key_with_id()){
+                        info!("ICMP-Unreachable: {}", m);
+                        if let Some(d) = tr_map.get_mut(&m.get_key()){
                             d.add_trace(&msg);
                         }else{
                             /* ignore aliens  */
