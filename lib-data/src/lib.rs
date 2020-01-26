@@ -144,6 +144,9 @@ impl AppTraceRoute{
                 debug!("ICMP-Reply: {}", m);
                 let hop = AppHop::new(m.ttl, m.hop);
                 if !self.trace.contains(&hop){
+                    if m.hop == self.dst{
+                        self.completed = true;
+                    }
                     self.trace.insert(hop);
                     info!("start {}", self);
                     return None;
@@ -155,6 +158,10 @@ impl AppTraceRoute{
                 let hop = AppHop::new(m.pkt_seq as u8, m.hop); //pkt.ttl is reverse ttl and is not reliable...
                 if !self.trace.contains(&hop){
                     self.trace.insert(hop); //self.trace.len() + 1 = next ttl
+                    if m.hop == self.dst{
+                        self.completed = true;
+                        return None;
+                    }
                     if self.next_ttl() {
                         info!("{}", self);
                         return Some(AppTraceRouteTask::from(&*self));
@@ -166,6 +173,9 @@ impl AppTraceRoute{
                 let hop = AppHop::new(m.ttl, m.hop);
                 if !self.trace.contains(&hop){
                     self.trace.insert(hop);
+                    if m.hop == self.dst{
+                        self.completed = true;
+                    }
                     self.completed = true; //maybe compare hope to dst...
                     warn!("done {}", self);
                 }

@@ -39,7 +39,7 @@ async fn main() -> std::io::Result<()> {
 
     //setup logger...
     match opt.verbosity{
-        0 => {},
+        0 => std::env::set_var("RUST_LOG", "warn"),
         1 => std::env::set_var("RUST_LOG", "info"),
         2 => std::env::set_var("RUST_LOG", "debug"),
         _ => std::env::set_var("RUST_LOG", "trace"),
