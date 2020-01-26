@@ -11,3 +11,7 @@ type = "icmp" #icmp|udp|tcp|
 
 [traceroute.tcp]
 port = "80"
+
+
+[redis]
+url = "redis://localhost"

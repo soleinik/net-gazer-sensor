@@ -24,6 +24,7 @@ extern crate lib_data;
 pub use lib_data::*;
 
 extern crate lib_tracer;
+extern crate redis;
 
 mod conf;
 
@@ -48,11 +49,18 @@ async fn main() -> std::io::Result<()> {
 
     //load from file...
     opt.load();
+    opt.validate().unwrap();
 
-    if opt.iface.is_none(){
-        error!("Network interface is not specified!");
-        std::process::exit(-1);
-    }
+
+    // // Open a connection
+    // info!("Connecting to database...");
+    // let client = redis::Client::open(opt.redis_url.unwrap().as_str()).unwrap();
+    // let conn = client.get_connection().unwrap();
+    // let info:String = redis::cmd("INFO").query(&conn).unwrap();
+    // let info = info.lines().nth(1).unwrap();
+
+    // info!("Connected to {} ...",info);
+
 
     let iface_name = opt.iface.unwrap();
 
@@ -111,14 +119,15 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
-
-
     //communication via async channels - unbounded queue, watch for OOM. 
     // 1:1 producer:consumer
     let (data_sender, data_receiver): (lib_data::SenderChannel,lib_data::ReceiverChannel) = mpsc::channel();
 
 
     lib_tracer::start(data_receiver, ip);
+    lib_tracer::timer_start(data_sender.clone());
+
+
 
     info!("Starting listener loop...");
     loop{
@@ -136,6 +145,11 @@ async fn main() -> std::io::Result<()> {
                                     IpNextHeaderProtocols::Tcp => {
                                         if let Some(tcp) = TcpPacket::new(ip4pkt.payload()){
                                             let flags = tcp.get_flags();
+
+                                            // this can be used to calculate bandwith use between endpoints
+                                            // let size = ip4pkt.get_total_length();
+                                            // println!("======>packet size:{}", size);
+
 
                                             if 0 == tcp.get_window(){
                                                 let src_port = tcp.get_source();
@@ -177,13 +191,13 @@ async fn main() -> std::io::Result<()> {
 
                                     }
                                     IpNextHeaderProtocols::Udp => {
-                                        //println!("udp:{:?}", ip4pkt);
                                         continue
                                     }
                                     IpNextHeaderProtocols::Icmp => {
 
                                         if let Some(icmp) = IcmpPacket::new(ip4pkt.payload()){
 
+                                            //TODO: add ours EchoRequest for elapsed time
 
                                             let dst = ip4pkt.get_destination();
                                             if ip != dst{ //only replies back to us
@@ -221,7 +235,7 @@ async fn main() -> std::io::Result<()> {
                                                         if let Some(ip4_hdr) =  Ipv4Packet::new(timeex_pkt.payload()){
 
                                                             let dst = ip4_hdr.get_destination(); //intended 
-                                                            let ttl = ip4_hdr.get_ttl(); //this is not reliable... will use seq
+                                                            let ttl = ip4_hdr.get_ttl(); //this is not reliable... we will use seq
 
                                                             if let Some(echoreq_pkt) = EchoRequestPacket::new(ip4_hdr.payload()){
 
@@ -237,8 +251,6 @@ async fn main() -> std::io::Result<()> {
                                                     }
                                                 }
                                                 IcmpTypes::DestinationUnreachable => {
-                                                    //println!("=============> IcmpTypes::DestinationUnreachable {}<=========================", ip4pkt.get_source());
-
                                                     if let Some(unreach_pkt) =  DestinationUnreachablePacket::new(ip4pkt.payload()){
                                                         let hop = ip4pkt.get_source();
                                                         let src = ip4pkt.get_destination(); //this ip
