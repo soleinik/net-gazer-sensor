@@ -33,23 +33,27 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
             if let Ok(msg) = rx.recv(){
                 match msg.clone() {
                     AppData::Syn(mut m) => { //outbound, use dst
-                        if let Some(d) = tcp_map.get_mut(m.get_key()){
-                            d.apply(&msg);
+                        if let Some(tcp) = tcp_map.get_mut(m.get_key()){
+                            tcp.apply(&msg);
                         }else{
                             m.id = id_seq;
                             id_seq = increment(id_seq);
                             tcp_map.insert(*m.get_key(), m.clone());
 
                             let trace = AppTraceRoute::new(ip, m.dst, m.id);
-                            tr_map.insert(trace.get_key(), trace);
+                            let dup = tr_map.insert(trace.get_key(), trace);
+                            if dup.is_some(){
+                                warn!("syn dup:{}", m.dst);
+                            }
 
 
                             //let city: Option<geoip2::City> = reader.lookup(std::net::IpAddr::V4(msg.dst)).ok();
                             debug!("SYN    : {}", m); //,to_string(city));
 
                             /* submit for trace - fire and forget... */
-                            if let Some(trace) = tr_map.get(&m.get_key()){
-                                traceroute::process(AppTraceRouteTask::from(trace));
+                            if let Some(trace) = tr_map.get_mut(&m.get_key()){
+                                trace.request = Some(AppTraceRouteTask::from(&*trace));
+                                traceroute::process(trace.request.clone().unwrap());
                             }
                         }
                     }
@@ -62,37 +66,41 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
                             tcp_map.insert(*m.get_key(), m.clone());
 
                             let trace = AppTraceRoute::new(ip, m.dst, m.id);
-                            tr_map.insert(trace.get_key(), trace);
+                            let dup = tr_map.insert(trace.get_key(), trace);
+                            if dup.is_some(){
+                                warn!("synack dup:{}", m.dst);
+                            }
+
 
                             //let city: Option<geoip2::City> = reader.lookup(std::net::IpAddr::V4(msg.dst)).ok();
                             debug!("SYN-ACK: {}", m); //,to_string(city));
 
                             /* submit for trace - fire and forget... */
-                            if let Some(trace) = tr_map.get(&m.get_key()){
-                                traceroute::process(AppTraceRouteTask::from(trace));
+                            if let Some(trace) = tr_map.get_mut(&m.get_key()){
+                                trace.request = Some(AppTraceRouteTask::from(&*trace));
+                                traceroute::process(trace.request.clone().unwrap());
                             }
                         }
                     }
                     AppData::IcmpReply(m) => {
                         trace!("ICMP-Reply: {}", m);
 
-                        if let Some(d) = tr_map.get_mut(&m.get_key()){
-                            if let Some(task) = d.add_trace(&msg){
-                                /* submit for trace - fire and forget... */
-                                traceroute::process(task);
+                        if let Some(trace) = tr_map.get_mut(&m.get_key()){
+                            if let Some(task) = trace.add_trace(&msg){
+                                trace.request = Some(task);
+                                traceroute::process(trace.request.clone().unwrap());
                             }
                         }else{
                             /* ignore aliens  */
                         }
-
                     }
                     AppData::IcmpExceeded(m) => {
                         trace!("ICMP-Exceeded: {}", m);
 
-                        if let Some(d) = tr_map.get_mut(&m.get_key()){
-                            if let Some(task) = d.add_trace(&msg){
-                                /* submit for trace - fire and forget... */
-                                traceroute::process(task);
+                        if let Some(trace) = tr_map.get_mut(&m.get_key()){
+                            if let Some(task) = trace.add_trace(&msg){
+                                trace.request = Some(task);
+                                traceroute::process(trace.request.clone().unwrap());
                             }
                         }else{
                             /* ignore aliens  */
@@ -106,6 +114,25 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
                         }else{
                             /* ignore aliens  */
                         }
+                    }
+                    AppData::Timer(_now) =>{
+                        tr_map.values_mut()
+                            .filter(|trace| {
+                                if trace.completed{
+                                    warn!("trace completed:{}", trace);
+                                }
+                                !trace.completed
+                            })
+                            .for_each(|trace|{
+                                if let Some(task) = trace.add_trace(&msg){
+                                    trace.request = Some(task);
+                                    traceroute::process(trace.request.clone().unwrap());
+                                }
+                            })
+                        ;
+
+
+
                     }
 
                 }
@@ -124,6 +151,23 @@ fn increment(seq:u16) -> u16{
 }
 
 
+pub fn timer_start(tx:lib_data::SenderChannel){
+    info!("Starting timer loop...");
+
+    thread::spawn(move || {
+        //maintenance period... arbitrary 5 sec
+        let sleep_duration = std::time::Duration::new(5,0);
+
+        loop{
+            thread::sleep(sleep_duration);
+            trace!("Timer event");
+            tx.send(AppData::Timer(std::time::Instant::now())).unwrap();
+        }
+    });
+
+
+
+}
 
 // fn to_string(d:Option<geoip2::City>) ->String{
 //     if d.is_none() {

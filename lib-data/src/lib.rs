@@ -5,7 +5,7 @@ use std::sync::mpsc::{ Sender, Receiver };
 use std::net::Ipv4Addr;
 use std::fmt;
 use std::collections::BTreeSet;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 mod errors;
 
@@ -23,6 +23,8 @@ pub enum AppData{
     IcmpReply(AppIcmp),
     IcmpExceeded(AppIcmp),
     IcmpUnreachable(AppIcmp),
+    Timer(Instant),
+
 }
 
 
@@ -111,17 +113,29 @@ pub struct AppTraceRoute{
     pub trace: BTreeSet<AppHop>,
     pub pkt_id: u16,
 
-    pub ttl:u8,
-    pub completed:bool
+    ttl:u8,
+    pub completed:bool,
     //route: local_ip + id -> dst
     // replies come to this_ip + id. EchoRequests to dst. from this_ip with identifier=id
+
+    pub request:Option<AppTraceRouteTask>,
 }
 
 impl AppTraceRoute{
     pub fn new(src: Ipv4Addr, dst: Ipv4Addr, pkt_id:u16) -> Self{
-        AppTraceRoute{src, dst, pkt_id, trace:BTreeSet::<AppHop>::new(), ttl:1u8, completed:false}
+        AppTraceRoute{src, dst, pkt_id, trace:BTreeSet::<AppHop>::new(), ttl:1u8, completed:false, request:None}
     }
     pub fn get_key(&self) -> Ipv4Addr { self.dst }
+
+    fn next_ttl(&mut self) -> bool{
+        if !self.completed{
+            self.ttl += 1;
+            if self.ttl > 254 {
+                self.completed = true;
+            }
+        }
+        !self.completed
+    }
 
     pub fn add_trace(&mut self, data:&AppData) -> Option<AppTraceRouteTask>{
 
@@ -141,9 +155,10 @@ impl AppTraceRoute{
                 let hop = AppHop::new(m.pkt_seq as u8, m.hop); //pkt.ttl is reverse ttl and is not reliable...
                 if !self.trace.contains(&hop){
                     self.trace.insert(hop); //self.trace.len() + 1 = next ttl
-                    self.ttl += 1;
-                    info!("{}", self);
-                    return Some(AppTraceRouteTask::from(&*self));
+                    if self.next_ttl() {
+                        info!("{}", self);
+                        return Some(AppTraceRouteTask::from(&*self));
+                    }
                 }
             }
             AppData::IcmpUnreachable(m)  =>{
@@ -152,8 +167,19 @@ impl AppTraceRoute{
                 if !self.trace.contains(&hop){
                     self.trace.insert(hop);
                     self.completed = true; //maybe compare hope to dst...
-                    info!("done {}", self);
+                    warn!("done {}", self);
                 }
+            }
+            AppData::Timer(now)  =>{
+                if !self.completed {
+                    if let Some(task) = self.request.clone(){
+                        if now.duration_since(task.ts).as_secs() > 5 && self.next_ttl(){
+                            info!("timer: id:{} {} ttl:{}, hops:{}",self.pkt_id, self.dst, self.ttl, self.trace.len());
+                            return Some(AppTraceRouteTask::from(&*self));
+                        }
+                    }
+                }
+                return None;
             }
             _ => ()
         }
@@ -163,10 +189,10 @@ impl AppTraceRoute{
 impl fmt::Display for AppTraceRoute{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let trace = self.trace.iter()
-            .map(|e|format!("{}, ", e))
+            .map(|e|format!("{},", e))
             .fold(String::new(), |mut a, e| {a.push_str(&e); a})
             ;
-        write!(f, "route: {} -> [{}] -> {} [id:{}, next seq/ttl:{}]", self.src, trace, self.dst, self.pkt_id, self.ttl)
+        write!(f, "route[{}]: {} -> [{}] -> {} [id:{}, next seq/ttl:{}, discovered hops:{}]", self.pkt_id, self.src, trace, self.dst, self.pkt_id, self.ttl, self.trace.len())
     }
 }
 
@@ -179,18 +205,21 @@ pub struct AppTraceRouteTask{
     pub pkt_id: u16,
     pub pkt_seq: u16,
 
-    pub ttl:u8
+    pub ttl:u8,
+    pub ts: Instant,
+
 }
 
-impl From<&AppTraceRoute> for AppTraceRouteTask {
-    fn from(from: &AppTraceRoute) -> Self {
+impl From<& AppTraceRoute> for AppTraceRouteTask {
+    fn from(from: & AppTraceRoute) -> Self {
         
         AppTraceRouteTask{
             src:from.src,
             dst:from.dst,
             pkt_id: from.pkt_id,
             pkt_seq: from.ttl as u16, //from.trace.len() as u16,
-            ttl: from.ttl
+            ttl: from.ttl,
+            ts:Instant::now()
         }
     }
 }

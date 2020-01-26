@@ -1,6 +1,6 @@
 use std::net::Ipv4Addr;
 
-use pnet::packet::icmp::{IcmpTypes};
+use pnet::packet::icmp::IcmpTypes;
 
 use pnet::packet::{Packet, MutablePacket};
 use pnet::packet::ipv4::MutableIpv4Packet;
@@ -21,7 +21,7 @@ static ICMP_HEADER_LEN: usize = 8;
 static ICMP_PAYLOAD_LEN: usize = 32;
 
 
-pub fn create_icmp_packet<'a>( buffer_ip: &'a mut [u8], buffer_icmp: &'a mut [u8], src: Ipv4Addr, dest: Ipv4Addr, id:u16, ttl: u8) -> AppResult<MutableIpv4Packet<'a>> {
+fn create_icmp_packet<'a>( buffer_ip: &'a mut [u8], buffer_icmp: &'a mut [u8], src: Ipv4Addr, dest: Ipv4Addr, id:u16, ttl: u8) -> AppResult<MutableIpv4Packet<'a>> {
     let mut ipv4_packet = MutableIpv4Packet::new(buffer_ip).unwrap();
 
     ipv4_packet.set_version(4);
@@ -53,16 +53,17 @@ pub fn create_icmp_packet<'a>( buffer_ip: &'a mut [u8], buffer_icmp: &'a mut [u8
 
 use pnet::transport::{transport_channel, TransportChannelType::Layer3};
 
+const ICMP_MESSAGE :&[u8] = b"netgazer";
+
 pub fn process(task:AppTraceRouteTask){
 
     task::spawn(async move {
         debug!("Sending probe {} from {} with id/seq/ttl:{}/{}/{}", task.dst, task.src, task.pkt_id, task.pkt_seq, task.ttl);
+        
         //FIXME - reuse buffer. ThreadLocal?
         let mut buffer_ip = [0u8; 40];
         let mut buffer_icmp = [0u8; MutableEchoRequestPacket::minimum_packet_size()];
-
-        //let msg = String::from("hello");
-        //let mut buffer_icmp = msg.into_bytes();
+        buffer_icmp.copy_from_slice(ICMP_MESSAGE);
 
         let pkt = create_icmp_packet(&mut buffer_ip, &mut buffer_icmp, task.src, task.dst, task.pkt_id, task.ttl).unwrap();
 
