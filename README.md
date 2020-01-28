@@ -20,6 +20,9 @@ Captured data can be:
   + tcp
 
 
+## Sample graphed http sessions, originated from browser
+![Graphed http sessions originated from my workstation](./docs/graphed-session.png)
+
 ## To build
 ```
 $ cargo build 
