@@ -10,7 +10,9 @@ Captured data can be:
 + geoiplocation enriched
 + from elapsed time between SYN and SYN-ACK derive network performance
 + capturing SACK (tcp retransmits) - derive network quality
-+ many other things...  
++ visualize internal network communication
++ visualize inbound communication attempts
++ many other things
 
 ## TODOs
 + geoiplocation - move to another process
@@ -19,6 +21,9 @@ Captured data can be:
   + icmp
   + tcp
 
+
+## Graphed http sessions, originated from browser
+![Graphed http sessions originated from my workstation](./docs/graphed-session.png)
 
 ## To build
 ```
