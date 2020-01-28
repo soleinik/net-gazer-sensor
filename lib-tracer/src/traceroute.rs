@@ -47,13 +47,13 @@ fn create_icmp_packet<'a>( buffer_ip: &'a mut [u8], buffer_icmp: &'a mut [u8], s
 
     /* set payload */
     ipv4_packet.set_payload(icmp_packet.packet_mut());
+
+    //set don't fragment
     Ok(ipv4_packet)
 }
 
 
 use pnet::transport::{transport_channel, TransportChannelType::Layer3};
-
-const ICMP_MESSAGE :&[u8] = b"netgazer";
 
 pub fn process(task:AppTraceRouteTask){
 
@@ -63,7 +63,6 @@ pub fn process(task:AppTraceRouteTask){
         //FIXME - reuse buffer. ThreadLocal?
         let mut buffer_ip = [0u8; 40];
         let mut buffer_icmp = [0u8; MutableEchoRequestPacket::minimum_packet_size()];
-        buffer_icmp.copy_from_slice(ICMP_MESSAGE);
 
         let pkt = create_icmp_packet(&mut buffer_ip, &mut buffer_icmp, task.src, task.dst, task.pkt_id, task.ttl).unwrap();
 

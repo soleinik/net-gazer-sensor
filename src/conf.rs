@@ -14,7 +14,7 @@ const KEY_REDIS_URL:&str = "redis.url";
 )]
 pub struct OptConf {
     // The number of occurrences of the `v/verbose` flag
-    /// Verbose mode (-v(info), -vv(debug), -vvv(trace), etc.)
+    /// Verbose mode (-v(info), -vv(debug), -vvv(trace), etc. default: warn)
     #[structopt(short, long, parse(from_occurrences))]
     pub verbosity: u8,
 
