@@ -1,6 +1,6 @@
 use std::sync::mpsc;
 
-use pnet::datalink::{ self, Channel, linux};
+use pnet::datalink::{ self, Channel, Config, channel};
 
 use pnet::packet::ethernet::{EthernetPacket, EtherTypes};
 use pnet::packet::ipv4::Ipv4Packet;
@@ -97,7 +97,7 @@ async fn main() -> std::io::Result<()> {
 
     info!("net:{}", net);
         
-    let cfg = linux::Config::default();
+    let cfg = Config::default();
     // cfg.fanout = Some(
     //     FanoutOption {
     //     group_id: 123,
@@ -107,7 +107,7 @@ async fn main() -> std::io::Result<()> {
     // });
 
     info!("About to create linux data channel...");
-    let (_, mut rx) = match linux::channel(&net_iface, cfg) {
+    let (_, mut rx) = match channel(&net_iface, cfg) {
         Ok(Channel::Ethernet(tx, rx)) => (tx, rx),
         Ok(_) => {
             error!("Unable to open data link channel! Unexpected data link channel type");
