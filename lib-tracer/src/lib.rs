@@ -116,10 +116,30 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
                         }
                     }
                     AppData::Timer(_now) =>{
+
+                        use lib_data::{TraceRouteNode, Node, Link};
+
+                        let mut nodes = Vec::<Node>::new();
+                        let mut links = Vec::<Link>::new();
+
                         tr_map.values_mut()
                             .filter(|trace| {
                                 if trace.completed{
-                                    warn!("trace completed:{}", trace);
+
+                                    let zz = trace.to();
+                                    zz.nodes.into_iter().for_each(|n|{
+                                        if !nodes.contains(&n){
+                                            nodes.push(n);
+                                        }
+                                    });
+
+                                    zz.links.into_iter().for_each(|n|{
+                                        if !links.contains(&n){
+                                            links.push(n);
+                                        }
+                                    });
+
+                                    //warn!("trace completed:{}", trace.to_json());
                                 }
                                 !trace.completed
                             })
@@ -130,6 +150,10 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
                                 }
                             })
                         ;
+                        println!("============================= start ================================================");
+                        let zz = TraceRouteNode{nodes, links};
+                        println!("{}", zz.to_json());
+                        println!("============================= end ================================================");
 
 
 

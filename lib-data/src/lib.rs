@@ -94,7 +94,7 @@ impl AppIcmp{
     //this_ip+pkt_id
     pub fn get_key(&self) -> Ipv4Addr { self.dst }
 
-    pub fn apply(&mut self, v:&AppData){
+    pub fn apply(&mut self, _v:&AppData){
 
     }
 }
@@ -195,6 +195,14 @@ impl AppTraceRoute{
         }
         None
     }
+    pub fn to_json(&self) -> String{
+        let nodes = TraceRouteNode::from(self);
+        serde_json::to_string(&nodes).unwrap()
+    }
+
+    pub fn to(&self) -> TraceRouteNode{
+        TraceRouteNode::from(self)
+    }
 }
 impl fmt::Display for AppTraceRoute{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -205,7 +213,6 @@ impl fmt::Display for AppTraceRoute{
         write!(f, "route[{}]: {} -> [{}] -> {} [id:{}, next seq/ttl:{}, discovered hops:{}]", self.pkt_id, self.src, trace, self.dst, self.pkt_id, self.ttl, self.trace.len())
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct AppTraceRouteTask{
@@ -252,3 +259,102 @@ impl fmt::Display for AppHop{
 }
 
 
+
+
+/*
+  {
+      "id": "Myriel",
+      "group": 1
+    },
+
+ {
+      "source": "Napoleon",
+      "target": "Myriel",
+      "value": 1
+    },
+
+
+*/
+use serde::{Serialize};
+
+#[derive(Serialize, Debug)]
+pub struct Node{
+    pub id:String,
+    pub group:u16
+}
+impl PartialEq for Node {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+#[derive(Serialize, Debug)]
+pub struct Link{
+    pub source:String,
+    pub target:String,
+    pub value:u16 //group
+}
+
+impl PartialEq for Link {
+    fn eq(&self, other: &Self) -> bool {
+        self.source == other.source && self.target == other.target
+    }
+}
+
+
+#[derive(Serialize, Debug)]
+pub struct TraceRouteNode{
+    pub nodes:Vec<Node>,
+    pub links:Vec<Link>,
+
+}
+
+impl TraceRouteNode{
+    pub fn to_json(&self) -> String{
+        serde_json::to_string(self).unwrap()
+    }
+
+}
+
+impl From<& AppTraceRoute> for TraceRouteNode {
+    fn from(from: & AppTraceRoute) -> Self {
+        let mut nodes = Vec::<Node>::new();
+
+        nodes.push(Node{
+            id:format!("{}", from.src),
+            group:from.pkt_id
+        });
+
+        from.trace.iter().for_each(|hop|{
+            nodes.push(Node{
+                id:format!("{}", hop.hop),
+                group:from.pkt_id
+            });
+        });
+
+        nodes.push(Node{
+            id:format!("{}", from.dst),
+            group:from.pkt_id
+        });
+
+
+        let mut links = Vec::<Link>::new();
+
+        let mut src = format!("{}", from.src);
+        from.trace.iter().for_each(|hop|{
+            let dst = format!("{}", hop.hop);
+            let link = Link{
+                source:src.clone(),
+                target:dst.clone(),
+                value:from.pkt_id
+            };
+            links.push(link);
+            src = dst;
+        });
+
+
+
+
+        TraceRouteNode{nodes, links}
+    }
+}
