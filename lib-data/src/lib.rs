@@ -9,6 +9,8 @@ use std::time::Instant;
 
 mod errors;
 
+#[cfg(test)] mod tests;
+
 pub use errors::*;
 
 
