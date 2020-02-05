@@ -10,19 +10,19 @@ table Message{
 
 
 table Route{
-    route_id:uint16;    //pkt_id
+    route_id:uint16;    //pkt_id, trace id
 
     src: uint32;        //ipv4
     dst: uint32;        //ipv4
 }
 
 table Hop{
-    route_id:uint16;    //pkt_id
+    route_id:uint16;    //pkt_id, trace id
 
     hop: uint32;        //ipv4
 
-    ttl:ubyte;
-    rtt:uint16;
+    ttl:ubyte;          //time to live, also hop id
+    rtt:uint16;         //round trip time
 }
 
 root_type Message;
