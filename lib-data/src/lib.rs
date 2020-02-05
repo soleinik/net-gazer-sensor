@@ -8,11 +8,12 @@ use std::collections::BTreeSet;
 use std::time::Instant;
 
 mod errors;
+mod utils;
 
 #[cfg(test)] mod tests;
 
 pub use errors::*;
-
+pub use utils::*;
 
 pub type ReceiverChannel = Receiver<AppData>;
 pub type SenderChannel = Sender<AppData>;
@@ -360,3 +361,4 @@ impl From<& AppTraceRoute> for TraceRouteNode {
         TraceRouteNode{nodes, links}
     }
 }
+

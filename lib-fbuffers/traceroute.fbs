@@ -1,22 +1,28 @@
 // traceroute.fbs
 
-//namespace traceroute;
+
+table Message{
+    seq:uint64;         //message sequence
+
+    routes:[Route];     //new routes
+    hops:  [Hop];       //route hops
+}
+
 
 table Route{
     route_id:uint16;    //pkt_id
 
-    src:[ubyte];        //[u8; 4], ipv4
-    dst:[ubyte];        //[u8; 4], ipv4
-
-    max_ttl:ubyte;         //route length
-
-    hops:[Hop]; 
+    src: uint32;        //ipv4
+    dst: uint32;        //ipv4
 }
 
 table Hop{
-    hop:[ubyte]; //[u8; 4]
+    route_id:uint16;    //pkt_id
+
+    hop: uint32;        //ipv4
+
     ttl:ubyte;
-    rtt:uint;
+    rtt:uint16;
 }
 
-root_type Route;
+root_type Message;

@@ -24,6 +24,7 @@ extern crate lib_data;
 pub use lib_data::*;
 
 extern crate lib_tracer;
+extern crate lib_fbuffers;
 
 mod conf;
 
