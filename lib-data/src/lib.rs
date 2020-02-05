@@ -90,16 +90,13 @@ pub struct AppIcmp{
     pub pkt_id: u16,
     pub pkt_seq: u16,
 
-    pub ttl:u8
+    pub ttl:u8,
+    pub ts: Instant,
 }
 
 impl AppIcmp{
     //this_ip+pkt_id
     pub fn get_key(&self) -> Ipv4Addr { self.dst }
-
-    pub fn apply(&mut self, _v:&AppData){
-
-    }
 }
 
 impl fmt::Display for AppIcmp{
@@ -145,7 +142,18 @@ impl AppTraceRoute{
         match data{
             AppData::IcmpReply(m)  =>{
                 debug!("ICMP-Reply: {}", m);
-                let hop = AppHop::new(m.ttl, m.hop);
+
+                let rtt = if let Some(req) = self.request.clone(){
+                    if req.pkt_id == m.pkt_id{
+                       m.ts.duration_since(req.ts).as_millis() as u16    
+                    }else{
+                        std::u16::MAX
+                    }
+                }else{
+                    std::u16::MAX
+                };
+
+                let hop = AppHop::new(m.ttl, m.pkt_id, m.hop, rtt);
                 if !self.trace.contains(&hop){
                     if m.hop == self.dst{
                         self.completed = true;
@@ -157,8 +165,18 @@ impl AppTraceRoute{
             }
             AppData::IcmpExceeded(m)  => {
                 debug!("ICMP-Exceeded: {}", m);
+                let rtt = if let Some(req) = self.request.clone(){
+                    if req.pkt_id == m.pkt_id{
+                       m.ts.duration_since(req.ts).as_millis() as u16    
+                    }else{
+                        std::u16::MAX
+                    }
+                }else{
+                    std::u16::MAX
+                };
 
-                let hop = AppHop::new(m.pkt_seq as u8, m.hop); //pkt.ttl is reverse ttl and is not reliable...
+
+                let hop = AppHop::new(m.pkt_seq as u8, m.pkt_id, m.hop, rtt); //pkt.ttl is reverse ttl and is not reliable...
                 if !self.trace.contains(&hop){
                     self.trace.insert(hop); //self.trace.len() + 1 = next ttl
                     if m.hop == self.dst{
@@ -173,7 +191,18 @@ impl AppTraceRoute{
             }
             AppData::IcmpUnreachable(m)  =>{
                 debug!("ICMP-Unreachable: {}", m);
-                let hop = AppHop::new(m.ttl, m.hop);
+
+                let rtt = if let Some(req) = self.request.clone(){
+                    if req.pkt_id == m.pkt_id{
+                       m.ts.duration_since(req.ts).as_millis() as u16    
+                    }else{
+                        std::u16::MAX
+                    }
+                }else{
+                    std::u16::MAX
+                };
+
+                let hop = AppHop::new(m.ttl, m.pkt_id, m.hop, rtt);
                 if !self.trace.contains(&hop){
                     self.trace.insert(hop);
                     if m.hop == self.dst{
@@ -247,12 +276,13 @@ impl From<& AppTraceRoute> for AppTraceRouteTask {
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct AppHop{
     pub ttl:u8,
+    pub pkt_id: u16,
     pub hop: Ipv4Addr,
-
+    pub rtt: u16,
 }
 impl AppHop{
-    pub fn new(ttl:u8, hop:Ipv4Addr) -> Self{
-        AppHop{ttl, hop}
+    pub fn new(ttl:u8, pkt_id: u16, hop:Ipv4Addr, rtt:u16) -> Self{
+        AppHop{ttl,pkt_id, hop, rtt}
     }
 }
 impl fmt::Display for AppHop{

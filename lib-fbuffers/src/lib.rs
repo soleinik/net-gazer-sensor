@@ -25,7 +25,6 @@ impl Builder<'_> {
     fn reset(&mut self){
         self.bldr.reset();
         self.seq += 1; //FIXME: overflow
-
     }
 
     pub fn create_hop_message(&mut self, hops:&[AppHop]) -> Vec<u8>{
@@ -33,14 +32,14 @@ impl Builder<'_> {
         self.bldr.reset();
 
         let mut args = MessageArgs::default();
-
         args.seq = self.seq;
 
-        let hops_vec:Vec<flatbuffers::WIPOffset<Hop>> = hops.iter()
-            .map(|x| {
-                Hop::create(&mut self.bldr, &HopArgs::from(x))
-            })
-            .collect();
+        let hops_vec:Vec<flatbuffers::WIPOffset<Hop>> = 
+            hops.iter()
+                .map(|x| {
+                    Hop::create(&mut self.bldr, &HopArgs::from(x))
+                })
+                .collect();
 
         args.hops = Some(self.bldr.create_vector(&hops_vec));
 
@@ -59,11 +58,12 @@ impl Builder<'_> {
         let mut args = MessageArgs::default();
         args.seq = self.seq;
 
-        let rts_vec:Vec<flatbuffers::WIPOffset<Route>> = routes.iter()
-            .map(|x| {
-                Route::create(&mut self.bldr, &RouteArgs::from(x))
-            })
-            .collect();
+        let rts_vec:Vec<flatbuffers::WIPOffset<Route>> = 
+            routes.iter()
+                .map(|x| {
+                    Route::create(&mut self.bldr, &RouteArgs::from(x))
+                })
+                .collect();
 
         args.routes = Some(self.bldr.create_vector(&rts_vec));
 
@@ -74,8 +74,6 @@ impl Builder<'_> {
         msg
     }
 }
-
-
 
 impl From<& AppTraceRoute> for RouteArgs {
     fn from(from: & AppTraceRoute) -> Self {
@@ -89,11 +87,11 @@ impl From<& AppTraceRoute> for RouteArgs {
 
 impl From<& AppHop> for HopArgs {
     fn from(from: & AppHop) -> Self {
-        let mut args = HopArgs::default();
-        args.hop = from.hop.into();
-        args.ttl = from.ttl;
-        //args.route_id
-        //args.rtt
-        args
+        HopArgs{
+            hop: from.hop.into(),
+            ttl: from.ttl,
+            route_id: from.pkt_id,
+            rtt: from.rtt
+        }
     }
 }

@@ -210,7 +210,7 @@ async fn main() -> std::io::Result<()> {
                                                         let pkt_seq =echo.get_sequence_number();
 
                                                         data_sender.send(
-                                                            AppData::IcmpReply(AppIcmp{src, dst, hop:dst, pkt_id, pkt_seq, ttl})
+                                                            AppData::IcmpReply(AppIcmp{src, dst, hop:dst, pkt_id, pkt_seq, ttl, ts:Instant::now()})
                                                         ).unwrap();
     
                                                     }
@@ -232,9 +232,8 @@ async fn main() -> std::io::Result<()> {
                                                                 let pkt_seq =echoreq_pkt.get_sequence_number();
 
                                                                 data_sender.send(AppData::IcmpExceeded(
-                                                                    AppIcmp{src, dst, hop, pkt_id, pkt_seq, ttl})
+                                                                    AppIcmp{src, dst, hop, pkt_id, pkt_seq, ttl, ts:Instant::now()})
                                                                 ).unwrap();
-
                                                             }
                                                         }
                                                     }
@@ -251,7 +250,7 @@ async fn main() -> std::io::Result<()> {
                                                                 let pkt_seq =echoreq_pkt.get_sequence_number();
 
                                                                 data_sender.send(
-                                                                    AppData::IcmpUnreachable(AppIcmp{src, dst, hop, pkt_id, pkt_seq, ttl})
+                                                                    AppData::IcmpUnreachable(AppIcmp{src, dst, hop, pkt_id, pkt_seq, ttl, ts:Instant::now()})
                                                                 ).unwrap();
                                                             }
 
