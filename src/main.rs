@@ -24,7 +24,6 @@ extern crate lib_data;
 pub use lib_data::*;
 
 extern crate lib_tracer;
-extern crate redis;
 
 mod conf;
 
@@ -50,17 +49,6 @@ async fn main() -> std::io::Result<()> {
     //load from file...
     opt.load();
     opt.validate().unwrap();
-
-
-    // // Open a connection
-    // info!("Connecting to database...");
-    // let client = redis::Client::open(opt.redis_url.unwrap().as_str()).unwrap();
-    // let conn = client.get_connection().unwrap();
-    // let info:String = redis::cmd("INFO").query(&conn).unwrap();
-    // let info = info.lines().nth(1).unwrap();
-
-    // info!("Connected to {} ...",info);
-
 
     let iface_name = opt.iface.unwrap();
 

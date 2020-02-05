@@ -1,0 +1,22 @@
+// traceroute.fbs
+
+//namespace traceroute;
+
+table Route{
+    route_id:uint16;    //pkt_id
+
+    src:[ubyte];        //[u8; 4], ipv4
+    dst:[ubyte];        //[u8; 4], ipv4
+
+    max_ttl:ubyte;         //route length
+
+    hops:[Hop]; 
+}
+
+table Hop{
+    hop:[ubyte]; //[u8; 4]
+    ttl:ubyte;
+    rtt:uint;
+}
+
+root_type Route;

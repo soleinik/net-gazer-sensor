@@ -10,11 +10,13 @@ edition = "2018"
 members=[
     "lib-tracer",
     "lib-data",
+    "lib-fbuffers",
 ]
 
 [dependencies]
 lib-tracer = { path="./lib-tracer" }
 lib-data = { path="./lib-data" }
+lib-fbuffers = { path="./lib-fbuffers" }
 
 structopt = "0.3"
 config = "0.10"
@@ -29,5 +31,3 @@ async-std = { version="1.4", default-features = true, features=["attributes"] }
 #futures = "0.3"
 
 bitflags = "1"
-
-redis = "0.8.0"
