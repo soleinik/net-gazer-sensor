@@ -7,7 +7,7 @@ const KEY_IFACE:&str = "network.iface";
 const KEY_REDIS_URL:&str = "redis.url";
 
 
-#[derive(StructOpt, Debug)]
+#[derive(StructOpt, Debug, Clone)]
 #[structopt(
     name = "net-gazer",
     about = "network connection capture and analysis daemon"
@@ -34,24 +34,24 @@ pub struct OptConf {
 
 }
 
-
+impl Default for OptConf{
+    fn default() -> Self { OptConf::from_args() }   
+}
 
 
 impl OptConf{
-    pub fn new() -> Self{
-        //load command line
-        OptConf::from_args()
-    }
 
-    pub fn load(&mut self){
+    pub fn load(&mut self, app_name: &str){
+
+        let current_dir = std::env::current_dir().unwrap();
+        let current_dir = current_dir.to_str().unwrap();
 
         //try to load default config
         if self.config_path.is_none(){
-            let app_name = env!("CARGO_PKG_NAME");
             let cfg_file_name = format!("{}.toml", app_name);
 
             let paths = vec![
-                format!("./etc/{}/{}",app_name, cfg_file_name), 
+                format!("{}/etc/{}/{}",current_dir, app_name, cfg_file_name), 
                 //user home?
                 format!("/usr/local/etc/{}/{}", app_name, cfg_file_name), 
                 format!("/etc/{}/{}", app_name, cfg_file_name)
@@ -91,7 +91,7 @@ impl OptConf{
         }
     }
 
-    pub fn validate(&mut self) -> crate::AppResult<()>{
+    pub fn validate(&self) -> crate::AppResult<()>{
         //FIXME - collect all errors
         info!("Validating configuration...");
         if self.iface.is_none(){

@@ -19,4 +19,4 @@ async-std = { version="1.4", default-features = true, features=["attributes"] }
 
 crossbeam-deque = "0.7"
 
-#maxminddb = "0.13.0"
+redis = "0.15.1"

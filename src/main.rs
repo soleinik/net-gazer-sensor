@@ -26,8 +26,6 @@ pub use lib_data::*;
 extern crate lib_tracer;
 extern crate lib_fbuffers;
 
-mod conf;
-
 
 #[async_std::main]
 async fn main() -> std::io::Result<()> {
@@ -35,7 +33,7 @@ async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_BACKTRACE", "1");
 
     //read command line...
-    let mut opt = conf::OptConf::new();
+    let mut opt = lib_data::OptConf::default();
 
     //setup logger...
     match opt.verbosity{
@@ -48,10 +46,10 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
 
     //load from file...
-    opt.load();
+    opt.load(env!("CARGO_PKG_NAME"));
     opt.validate().unwrap();
 
-    let iface_name = opt.iface.unwrap();
+    let iface_name = opt.iface.clone().unwrap();
 
     let net_iface = 
         datalink::interfaces().into_iter()
@@ -113,7 +111,7 @@ async fn main() -> std::io::Result<()> {
     let (data_sender, data_receiver): (lib_data::SenderChannel,lib_data::ReceiverChannel) = mpsc::channel();
 
 
-    lib_tracer::start(data_receiver, ip);
+    lib_tracer::start(data_receiver, ip, &opt);
     lib_tracer::timer_start(data_sender.clone());
 
 
@@ -128,6 +126,7 @@ async fn main() -> std::io::Result<()> {
                     match ethernet_packet.get_ethertype(){
                         EtherTypes::Ipv4 => {
                             if let Some(ip4pkt) = Ipv4Packet::new(ethernet_packet.payload()){
+
 
                                 match ip4pkt.get_next_level_protocol(){
 
