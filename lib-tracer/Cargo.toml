@@ -8,6 +8,8 @@ edition = "2018"
 
 [dependencies]
 lib-data = { path="../lib-data" }
+lib-fbuffers = { path="../lib-fbuffers" }
+
 
 log = "0.4.8"
 pnet = "0.23"

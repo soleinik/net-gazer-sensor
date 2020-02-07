@@ -113,8 +113,7 @@ pub struct AppTraceRoute{
     pub trace: BTreeSet<AppHop>,
     pub pkt_id: u16,
 
-    ttl:u8,
-    pub completed:bool,
+    pub ttl:u8,
     //route: local_ip + id -> dst
     // replies come to this_ip + id. EchoRequests to dst. from this_ip with identifier=id
 
@@ -123,117 +122,95 @@ pub struct AppTraceRoute{
 
 impl AppTraceRoute{
     pub fn new(src: Ipv4Addr, dst: Ipv4Addr, pkt_id:u16) -> Self{
-        AppTraceRoute{src, dst, pkt_id, trace:BTreeSet::<AppHop>::new(), ttl:1u8, completed:false, request:None}
+        let mut ret_val = AppTraceRoute{src, dst, pkt_id, trace:BTreeSet::<AppHop>::new(), ttl:1u8, request:None};
+        ret_val.request = Some(AppTraceRouteTask::from(&ret_val));
+        ret_val
     }
+
     pub fn get_key(&self) -> Ipv4Addr { self.dst }
 
     fn next_ttl(&mut self) -> bool{
-        if !self.completed{
+        if self.request.is_some(){
             self.ttl += 1;
             if self.ttl > 254 {
-                self.completed = true;
+                self.request = None;
             }
         }
-        !self.completed
+        self.request.is_some()
     }
 
-    pub fn add_trace(&mut self, data:&AppData) -> Option<AppTraceRouteTask>{
+    fn get_rtt(&self, m:&AppIcmp) -> u16{
+        if let Some(req) = self.request.clone(){
+            if req.pkt_id == m.pkt_id{
+            m.ts.duration_since(req.ts).as_millis() as u16    
+            }else{
+                std::u16::MAX
+            }
+        }else{
+            std::u16::MAX
+        }
+    }
 
+    pub fn setup_for_next_request(&mut self){
+        if self.next_ttl(){
+            self.request = Some(AppTraceRouteTask::from(&*self));
+        }else{
+            self.request = None;
+        }
+    }
+
+    pub fn add_trace(&mut self, data:&AppData) -> Option<AppHop>{
+        
         match data{
             AppData::IcmpReply(m)  =>{
                 debug!("ICMP-Reply: {}", m);
-
-                let rtt = if let Some(req) = self.request.clone(){
-                    if req.pkt_id == m.pkt_id{
-                       m.ts.duration_since(req.ts).as_millis() as u16    
-                    }else{
-                        std::u16::MAX
-                    }
-                }else{
-                    std::u16::MAX
-                };
-
-                let hop = AppHop::new(m.ttl, m.pkt_id, m.hop, rtt);
+                
+                let hop = AppHop::new(m.pkt_seq as u8, m.pkt_id, m.hop, self.get_rtt(m));
+                
                 if !self.trace.contains(&hop){
+                    self.trace.insert(hop.clone());
                     if m.hop == self.dst{
-                        self.completed = true;
+                        self.request = None;
+                    }else{
+                        self.setup_for_next_request();
                     }
-                    self.trace.insert(hop);
-                    info!("start {}", self);
-                    return None;
+                    return Some(hop);
                 }
+
             }
             AppData::IcmpExceeded(m)  => {
                 debug!("ICMP-Exceeded: {}", m);
-                let rtt = if let Some(req) = self.request.clone(){
-                    if req.pkt_id == m.pkt_id{
-                       m.ts.duration_since(req.ts).as_millis() as u16    
-                    }else{
-                        std::u16::MAX
-                    }
-                }else{
-                    std::u16::MAX
-                };
 
-
-                let hop = AppHop::new(m.pkt_seq as u8, m.pkt_id, m.hop, rtt); //pkt.ttl is reverse ttl and is not reliable...
+                let hop = AppHop::new(m.pkt_seq as u8, m.pkt_id, m.hop, self.get_rtt(m)); //pkt.ttl is reverse ttl and is not reliable...
                 if !self.trace.contains(&hop){
-                    self.trace.insert(hop); //self.trace.len() + 1 = next ttl
+                    self.trace.insert(hop.clone()); //self.trace.len() + 1 = next ttl
                     if m.hop == self.dst{
-                        self.completed = true;
-                        return None;
+                        self.request = None;
+                    }else{
+                        self.setup_for_next_request();
                     }
-                    if self.next_ttl() {
-                        info!("{}", self);
-                        return Some(AppTraceRouteTask::from(&*self));
-                    }
+
+                    return Some(hop);
                 }
             }
             AppData::IcmpUnreachable(m)  =>{
                 debug!("ICMP-Unreachable: {}", m);
 
-                let rtt = if let Some(req) = self.request.clone(){
-                    if req.pkt_id == m.pkt_id{
-                       m.ts.duration_since(req.ts).as_millis() as u16    
-                    }else{
-                        std::u16::MAX
-                    }
-                }else{
-                    std::u16::MAX
-                };
-
-                let hop = AppHop::new(m.ttl, m.pkt_id, m.hop, rtt);
+                let hop = AppHop::new(m.pkt_seq as u8, m.pkt_id, m.hop, self.get_rtt(m));
                 if !self.trace.contains(&hop){
-                    self.trace.insert(hop);
+                    self.trace.insert(hop.clone());
                     if m.hop == self.dst{
-                        self.completed = true;
+                        self.request = None;
+                    }else{
+                        self.setup_for_next_request();
                     }
-                    self.completed = true; //maybe compare hope to dst...
-                    warn!("done {}", self);
+                    return Some(hop);
                 }
             }
-            AppData::Timer(now)  =>{
-                if !self.completed {
-                    if let Some(task) = self.request.clone(){
-                        if now.duration_since(task.ts).as_secs() > 5 && self.next_ttl(){
-                            info!("timer: id:{} {} ttl:{}, hops:{}",self.pkt_id, self.dst, self.ttl, self.trace.len());
-                            return Some(AppTraceRouteTask::from(&*self));
-                        }
-                    }
-                }
-                return None;
-            }
+            //AppData::Timer(_now)  =>()
             _ => ()
         }
         None
-    }
-    pub fn to_json(&self) -> String{
-        let nodes = TraceRouteNode::from(self);
-        serde_json::to_string(&nodes).unwrap()
-    }
-
-    pub fn to(&self) -> TraceRouteNode{
-        TraceRouteNode::from(self)
     }
 }
 impl fmt::Display for AppTraceRoute{
@@ -290,105 +267,3 @@ impl fmt::Display for AppHop{
         write!(f, "{}:{}", self.ttl, self.hop)
     }
 }
-
-
-
-
-/*
-  {
-      "id": "Myriel",
-      "group": 1
-    },
-
- {
-      "source": "Napoleon",
-      "target": "Myriel",
-      "value": 1
-    },
-
-
-*/
-use serde::{Serialize};
-
-#[derive(Serialize, Debug)]
-pub struct Node{
-    pub id:String,
-    pub group:u16
-}
-impl PartialEq for Node {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-
-#[derive(Serialize, Debug)]
-pub struct Link{
-    pub source:String,
-    pub target:String,
-    pub value:u16 //group
-}
-
-impl PartialEq for Link {
-    fn eq(&self, other: &Self) -> bool {
-        self.source == other.source && self.target == other.target
-    }
-}
-
-
-#[derive(Serialize, Debug)]
-pub struct TraceRouteNode{
-    pub nodes:Vec<Node>,
-    pub links:Vec<Link>,
-
-}
-
-impl TraceRouteNode{
-    pub fn to_json(&self) -> String{
-        serde_json::to_string(self).unwrap()
-    }
-
-}
-
-impl From<& AppTraceRoute> for TraceRouteNode {
-    fn from(from: & AppTraceRoute) -> Self {
-        let mut nodes = Vec::<Node>::new();
-
-        nodes.push(Node{
-            id:format!("{}", from.src),
-            group:from.pkt_id
-        });
-
-        from.trace.iter().for_each(|hop|{
-            nodes.push(Node{
-                id:format!("{}", hop.hop),
-                group:from.pkt_id
-            });
-        });
-
-        nodes.push(Node{
-            id:format!("{}", from.dst),
-            group:from.pkt_id
-        });
-
-
-        let mut links = Vec::<Link>::new();
-
-        let mut src = format!("{}", from.src);
-        from.trace.iter().for_each(|hop|{
-            let dst = format!("{}", hop.hop);
-            let link = Link{
-                source:src.clone(),
-                target:dst.clone(),
-                value:from.pkt_id
-            };
-            links.push(link);
-            src = dst;
-        });
-
-
-
-
-        TraceRouteNode{nodes, links}
-    }
-}
-
