@@ -18,6 +18,9 @@ pub use utils::*;
 pub type ReceiverChannel = Receiver<AppData>;
 pub type SenderChannel = Sender<AppData>;
 
+
+const MAX_TTL:u8 = 64;
+
 #[derive(Debug, Clone)]
 pub enum AppData{
     Syn(AppTcp),
@@ -76,7 +79,7 @@ impl AppTcp{
 
 impl fmt::Display for AppTcp{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let elapsed = self.synack_ts.and_then(|sa|self.syn_ts.map(|s| sa.duration_since(s)) );
+        let elapsed = self.synack_ts.map_or_else(||0,|d|d.elapsed().as_millis());
         write!(f, "key:{}, id:{}  {} -> {}, elapsed:{:?}", self.get_key(), self.id, self.src, self.dst, elapsed)
     }
 }
@@ -130,9 +133,10 @@ impl AppTraceRoute{
     pub fn get_key(&self) -> Ipv4Addr { self.dst }
 
     fn next_ttl(&mut self) -> bool{
+        
         if self.request.is_some(){
             self.ttl += 1;
-            if self.ttl > 254 {
+            if self.ttl > MAX_TTL {
                 self.request = None;
             }
         }
@@ -249,6 +253,15 @@ impl From<& AppTraceRoute> for AppTraceRouteTask {
         }
     }
 }
+
+impl fmt::Display for AppTraceRouteTask{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} -> {} [id:{}, seq:{}, ttl:{}] elapsed:{}", self.src, self.dst, self.pkt_id, self.pkt_seq, self.ttl, self.ts.elapsed().as_millis())
+    }
+}
+
+
+
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct AppHop{

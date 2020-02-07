@@ -11,7 +11,6 @@ use std::net::Ipv4Addr;
 
 use lib_data::{AppData, ReceiverChannel, AppTcp, AppTraceRoute, AppTraceRouteTask};
 
-
 pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
     info!("Starting tracer loop...");
     thread::spawn(move || {
@@ -37,24 +36,26 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
                         }else{
                             m.id = id_seq;
                             id_seq = increment(id_seq);
-                            tcp_map.insert(*m.get_key(), m.clone());
+                            tcp_map.insert(*m.get_key(), m.clone())
+                                .and_then::<Option<()>, _>(|_| {error!("syn tcp dup:{}", m.get_key());None});
 
                             let trace = AppTraceRoute::new(ip, m.dst, m.id);
                             let msg = builder.create_route_message(&[trace.clone()]);
-                            println!("syn:{:?}", msg);
-
-                            let dup = tr_map.insert(trace.get_key(), trace);
-                            if dup.is_some(){
-                                warn!("syn dup:{}", m.dst);
+                            if m.id == 0{
+                                println!("syn:{:?}", msg);
                             }
+
+                            tr_map.insert(trace.get_key(), trace)
+                                .and_then::<Option<()>, _>(|_| {warn!("syn trace dup:{}", m.dst); None});
 
                             debug!("SYN    : {}", m); //,to_string(city));
 
-                            /* submit for trace - fire and forget... */
-                            if let Some(trace) = tr_map.get_mut(&m.get_key()){
-                                trace.request = Some(AppTraceRouteTask::from(&*trace));
-                                traceroute::process(trace.request.clone().unwrap());
-                            }
+                            tr_map.get_mut(&m.get_key())
+                                .and_then::<Option<()>, _>(|trace|{
+                                    trace.request = Some(AppTraceRouteTask::from(&*trace));
+                                    traceroute::process(trace.request.clone().unwrap());
+                                    None
+                                });
                         }
                     }
                     AppData::SynAck(mut m) => { //inbound, use src
@@ -63,93 +64,93 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr){
                         }else{
                             m.id = id_seq;
                             id_seq = increment(id_seq);
-                            tcp_map.insert(*m.get_key(), m.clone());
+                            tcp_map.insert(*m.get_key(), m.clone())
+                                .and_then::<Option<()>, _>(|_| {error!("synack tcp dup:{}", m.get_key());None});
 
                             let trace = AppTraceRoute::new(ip, m.dst, m.id);
                             let msg = builder.create_route_message(&[trace.clone()]);
-                            println!("syn-ack:{:?}", msg);
-
-                            let dup = tr_map.insert(trace.get_key(), trace);
-                            if dup.is_some(){
-                                warn!("synack dup:{}", m.dst);
+                            if m.id == 0{
+                                println!("syn-ack:{:?}", msg);
                             }
 
+                            tr_map.insert(trace.get_key(), trace)
+                                .and_then::<Option<()>, _>(|_| {warn!("synack trace dup:{}", m.dst); None});
 
-                            //let city: Option<geoip2::City> = reader.lookup(std::net::IpAddr::V4(msg.dst)).ok();
-                            debug!("SYN-ACK: {}", m); //,to_string(city));
+                            debug!("SYN-ACK: {}", m);
 
-                            /* submit for trace - fire and forget... */
-                            if let Some(trace) = tr_map.get_mut(&m.get_key()){
-                                trace.request = Some(AppTraceRouteTask::from(&*trace));
-                                traceroute::process(trace.request.clone().unwrap());
-                            }
+                            tr_map.get_mut(&m.get_key())
+                                .and_then::<Option<()>, _>(|trace|{
+                                    trace.request = Some(AppTraceRouteTask::from(&*trace));
+                                    traceroute::process(trace.request.clone().unwrap());
+                                    None
+                                });
                         }
                     }
                     AppData::IcmpReply(m) => {
                         trace!("ICMP-Reply: {}", m);
 
-                        if let Some(trace) = tr_map.get_mut(&m.get_key()){
-
-                            if let Some(hop) = trace.add_trace(&msg){
+                        tr_map.get_mut(&m.get_key())
+                            .and_then(|trace|{
+                                let ret = trace.add_trace(&msg);
+                                if let Some(req) = trace.request.clone(){ 
+                                    traceroute::process(req);
+                                }
+                                ret
+                            })                                    
+                            .and_then::<Option<()>, _>(|hop|{
                                 let msg = builder.create_hop_message(&[hop]);
-                                println!("icmp-reply:{}\t{}->[{}]{}->\t{}",m.pkt_id, m.src, m.ttl, m.hop, m.dst);
-                            }
-
-                            if let Some(req) = trace.request.clone(){ 
-                                traceroute::process(req);
-                            }
-                        }else{
-                            /* ignore aliens  */
-                        }
+                                info!("icmp-reply[compl'd]:{}\t{}->{}->\t{}, distance:{} ",m.pkt_id, m.src, m.hop, m.dst, m.pkt_seq);
+                                None
+                            });
                     }
                     AppData::IcmpExceeded(m) => {
                         trace!("ICMP-Exceeded: {}", m);
 
-                        if let Some(trace) = tr_map.get_mut(&m.get_key()){
-
-                            if let Some(hop) = trace.add_trace(&msg){
+                        tr_map.get_mut(&m.get_key())
+                            .and_then(|trace|{
+                                let ret = trace.add_trace(&msg);
+                                if let Some(req) = trace.request.clone(){
+                                    traceroute::process(req);
+                                }
+                                ret
+                            })
+                            .and_then::<Option<()>, _>(|hop|{
                                 let msg = builder.create_hop_message(&[hop]);
-                                println!("icmp-exeeded:{}\t{}->[{}]{}->\t{}", m.pkt_id, m.src, m.pkt_seq, m.hop, m.dst);
-                            }
-                            if let Some(req) = trace.request.clone(){ 
-                                traceroute::process(req);
-                            }
-                        }else{
-                            /* ignore aliens  */
-                        }
+                                info!("icmp-exeeded:{}\t{}->[{}]{}->\t{}", m.pkt_id, m.src, m.pkt_seq, m.hop, m.dst);
+                                None
+                            });
+
+                        // }else{
+                        //     /* ignore aliens  */
+                        // }
                     }
                     AppData::IcmpUnreachable(m) => {
                         trace!("ICMP-Unreachable: {}", m);
 
-                        if let Some(trace) = tr_map.get_mut(&m.get_key()){
-                            if let Some(hop) = trace.add_trace(&msg){
+                        tr_map.get_mut(&m.get_key())
+                            .and_then(|trace|trace.add_trace(&msg))
+                            .and_then::<Option<()>, _>(|hop|{
                                 let msg = builder.create_hop_message(&[hop]);
-                                println!("icmp-unreachable:{}\t{}->[{}]{}->\t{}",m.pkt_id, m.src,m.ttl,m.hop, m.dst);
-                            }
-                        }else{
-                            /* ignore aliens  */
-                        }
+                                info!("icmp-unreachable:{}\t{}->[{}]{}->\t{}",m.pkt_id, m.src,m.ttl,m.hop, m.dst);
+                                None
+                            });
                     }
-                    AppData::Timer(now) =>{
+                    AppData::Timer(_now) =>{
                         //cleanup...
                         tr_map.values_mut()
                             .filter(|tr| tr.request.is_some())
                             .filter(|tr| {
                                 if let Some(task) = tr.request.clone(){
-                                    return now.duration_since(task.ts).as_secs() > 5
+                                    return task.ts.elapsed().as_secs() > 5
                                 }
                                 false
                             }).for_each(|tr| {
-                                println!("timer: id:{} {} ttl:{}, hops:{}",tr.pkt_id, tr.dst, tr.ttl, tr.trace.len());
+                                info!("timer: id:{} {} ttl:{}, hops:{}, missing:{} ",tr.pkt_id, tr.dst, tr.ttl, tr.trace.len(), tr.ttl - tr.trace.len() as u8);
                                 tr.setup_for_next_request();
                                 if let Some(req) = tr.request.clone(){ 
                                     traceroute::process(req);
                                 }
                             });
-
-
-
-
                     }
 
                 }
