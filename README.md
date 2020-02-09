@@ -14,13 +14,14 @@ Captured data can be:
 + visualize inbound communication attempts
 + many other things
 
+![net-gazer-web](https://github.com/soleinik/net-gazer-web) data-collector part..
+
 ## TODOs
 + geoiplocation - move to another process
 + traceroute  
   + udp
   + icmp
   + tcp
-
 
 ## Graphed http sessions, originated from browser
 ![Graphed http sessions originated from my workstation](./docs/graphed-session.png)
