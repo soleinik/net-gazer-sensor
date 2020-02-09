@@ -171,7 +171,7 @@ impl AppTraceRoute{
             AppData::IcmpReply(m)  =>{
                 debug!("ICMP-Reply: {}", m);
                 
-                let hop = AppHop::new(m.pkt_seq as u8, m.pkt_id, m.hop, self.get_rtt(m));
+                let hop = AppHop::new(m.dst, m.pkt_seq as u8, m.pkt_id, m.hop, self.get_rtt(m));
                 
                 if !self.trace.contains(&hop){
                     self.trace.insert(hop.clone());
@@ -187,7 +187,7 @@ impl AppTraceRoute{
             AppData::IcmpExceeded(m)  => {
                 debug!("ICMP-Exceeded: {}", m);
 
-                let hop = AppHop::new(m.pkt_seq as u8, m.pkt_id, m.hop, self.get_rtt(m)); //pkt.ttl is reverse ttl and is not reliable...
+                let hop = AppHop::new(m.dst, m.pkt_seq as u8, m.pkt_id, m.hop, self.get_rtt(m)); //pkt.ttl is reverse ttl and is not reliable...
                 if !self.trace.contains(&hop){
                     self.trace.insert(hop.clone()); //self.trace.len() + 1 = next ttl
                     if m.hop == self.dst{
@@ -202,7 +202,7 @@ impl AppTraceRoute{
             AppData::IcmpUnreachable(m)  =>{
                 debug!("ICMP-Unreachable: {}", m);
 
-                let hop = AppHop::new(m.pkt_seq as u8, m.pkt_id, m.hop, self.get_rtt(m));
+                let hop = AppHop::new(m.dst, m.pkt_seq as u8, m.pkt_id, m.hop, self.get_rtt(m));
                 if !self.trace.contains(&hop){
                     self.trace.insert(hop.clone());
                     if m.hop == self.dst{
@@ -267,14 +267,15 @@ impl fmt::Display for AppTraceRouteTask{
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct AppHop{
+    pub dst: Ipv4Addr,
     pub ttl:u8,
     pub pkt_id: u16,
     pub hop: Ipv4Addr,
     pub rtt: u16,
 }
 impl AppHop{
-    pub fn new(ttl:u8, pkt_id: u16, hop:Ipv4Addr, rtt:u16) -> Self{
-        AppHop{ttl,pkt_id, hop, rtt}
+    pub fn new(dst:Ipv4Addr, ttl:u8, pkt_id: u16, hop:Ipv4Addr, rtt:u16) -> Self{
+        AppHop{dst, ttl,pkt_id, hop, rtt}
     }
 }
 impl fmt::Display for AppHop{

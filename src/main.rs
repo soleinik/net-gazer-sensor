@@ -169,9 +169,23 @@ async fn main() -> std::io::Result<()> {
                                             let outbound = net.contains(src);
 
                                             if !has_bit(flags, Flags::ACK){//SYN flag
-                                                data_sender.send(AppData::Syn(   AppTcp::new(src, dst, outbound, Some(Instant::now()), None))).unwrap();
+                                                data_sender.send(
+                                                    AppData::Syn(
+                                                        AppTcp::new(src, dst, outbound,
+                                                            Some(Instant::now()),
+                                                            None
+                                                        )
+                                                    )
+                                                ).unwrap();
                                             }else{  //SYN-ACK
-                                                data_sender.send(AppData::SynAck(AppTcp::new(src, dst, outbound, None, Some(Instant::now())))).unwrap();
+                                                data_sender.send(
+                                                    AppData::SynAck(
+                                                        AppTcp::new(src, dst, outbound, 
+                                                            None,
+                                                            Some(Instant::now())
+                                                        )
+                                                    )
+                                                ).unwrap();
                                             }
 
                                             continue;

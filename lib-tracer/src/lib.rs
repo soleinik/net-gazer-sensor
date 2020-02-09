@@ -1,16 +1,14 @@
 #[macro_use] extern crate log;
 extern crate async_std;
-//extern crate crossbeam_deque;
-//use maxminddb::geoip2;
 
 mod traceroute;
+mod consume;
 
 use std::thread;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 
 use lib_data::{AppData, ReceiverChannel, AppTcp, AppTraceRoute, AppTraceRouteTask, OptConf};
-use redis::Commands;
 
 pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
     info!("Starting tracer loop...");
@@ -34,15 +32,11 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
 
         let mut  id_seq = 0u16; //0-65535
 
-        let mut conn = 
-            match redis::Client::open(redis_url)
-                .and_then(|client| client.get_connection()){
-                    Ok(conn) => conn,
-                    Err(e) => {
-                        error!("Redis connectivity failed! Error:{}",e);
-                        std::process::exit(-1);
-                    }
-            };
+
+        let client = std::sync::Arc::new(redis::Client::open(redis_url).unwrap_or_else(|e|{
+            error!("Redis connectivity failed! Error:{}",e);
+            std::process::exit(-1);
+        }));
     
         loop{
             if let Ok(msg) = rx.recv(){
@@ -53,31 +47,23 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
                         }else{
                             m.id = id_seq;
                             id_seq = increment(id_seq);
+
+                            debug!("SYN    : {}", m);
+
+                            //communications map
                             tcp_map.insert(*m.get_key(), m.clone())
                                 .and_then::<Option<()>, _>(|_| {error!("syn tcp dup:{}", m.get_key());None});
 
-                            let trace = AppTraceRoute::new(ip, m.dst, m.id);
-                            let msg = builder.create_route_message(&[trace.clone()]);
-                            redis::cmd("LPUSH")
-                                .arg(&*m.get_key().to_string())
-                                //.arg(msg.clone())
-                                .arg(&*m.get_key().to_string())
-                                .query::<()>(&mut conn).unwrap();
-
-
-
-                            tr_map.insert(trace.get_key(), trace)
+                            let mut trace = AppTraceRoute::new(ip, m.dst, m.id);
+                            trace.request = Some(AppTraceRouteTask::from(&trace));
+                            
+                            //traces map
+                            tr_map.insert(trace.get_key(), trace.clone())
                                 .and_then::<Option<()>, _>(|_| {warn!("syn trace dup:{}", m.dst); None});
 
-                            debug!("SYN    : {}", m); //,to_string(city));
+                            consume::consume_route(client.clone(),&mut builder, &trace);
 
-                            tr_map.get_mut(&m.get_key())
-                                .and_then::<Option<()>, _>(|trace|{
-                                    trace.request = Some(AppTraceRouteTask::from(&*trace));
-                                    traceroute::process(trace.request.clone().unwrap());
-                                    None
-                                });
-                        }
+                            }
                     }
                     AppData::SynAck(mut m) => { //inbound, use src
                         if let Some(d) = tcp_map.get_mut(m.get_key()){
@@ -85,28 +71,19 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
                         }else{
                             m.id = id_seq;
                             id_seq = increment(id_seq);
-                            tcp_map.insert(*m.get_key(), m.clone())
-                                .and_then::<Option<()>, _>(|_| {error!("synack tcp dup:{}", m.get_key());None});
-
-                            let trace = AppTraceRoute::new(ip, m.dst, m.id);
-                            let msg = builder.create_route_message(&[trace.clone()]);
-                            redis::cmd("LPUSH")
-                                .arg(&*m.get_key().to_string())
-                                //.arg(msg.clone())
-                                .arg(&*m.get_key().to_string())
-                                .query::<()>(&mut conn).unwrap();
-
-                            tr_map.insert(trace.get_key(), trace)
-                                .and_then::<Option<()>, _>(|_| {warn!("synack trace dup:{}", m.dst); None});
 
                             debug!("SYN-ACK: {}", m);
 
-                            tr_map.get_mut(&m.get_key())
-                                .and_then::<Option<()>, _>(|trace|{
-                                    trace.request = Some(AppTraceRouteTask::from(&*trace));
-                                    traceroute::process(trace.request.clone().unwrap());
-                                    None
-                                });
+                            tcp_map.insert(*m.get_key(), m.clone())
+                                .and_then::<Option<()>, _>(|_| {error!("synack tcp dup:{}", m.get_key());None});
+
+                            let mut trace = AppTraceRoute::new(ip, m.dst, m.id);
+                            trace.request = Some(AppTraceRouteTask::from(&trace));
+
+                            tr_map.insert(trace.get_key(), trace.clone())
+                                .and_then::<Option<()>, _>(|_| {warn!("synack trace dup:{}", m.dst); None});
+
+                            consume::consume_route(client.clone(),&mut builder, &trace);
                         }
                     }
                     AppData::IcmpReply(m) => {
@@ -121,14 +98,7 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
                                 ret
                             })                                    
                             .and_then::<Option<()>, _>(|hop|{
-                                let msg = builder.create_hop_message(&[hop]);
-                                redis::cmd("LPUSH")
-                                    .arg(&*m.get_key().to_string())
-                                    //.arg(msg.clone())
-                                    .arg(&*m.hop.to_string())
-                                    .query::<()>(&mut conn).unwrap();
-
-
+                                consume::consume_hop(client.clone(),&mut builder, &hop);
                                 info!("icmp-reply[compl'd]:{}\t{}->{}->\t{}, distance:{} ",m.pkt_id, m.src, m.hop, m.dst, m.pkt_seq);
                                 None
                             });
@@ -145,14 +115,7 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
                                 ret
                             })
                             .and_then::<Option<()>, _>(|hop|{
-                                let msg = builder.create_hop_message(&[hop]);
-                                redis::cmd("LPUSH")
-                                    .arg(&*m.get_key().to_string())
-                                    //.arg(msg.clone())
-                                    .arg(&*m.hop.to_string())
-                                    .query::<()>(&mut conn).unwrap();
-
-
+                                consume::consume_hop(client.clone(),&mut builder, &hop);
                                 info!("icmp-exeeded:{}\t{}->[{}]{}->\t{}", m.pkt_id, m.src, m.pkt_seq, m.hop, m.dst);
                                 None
                             });
@@ -163,19 +126,15 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
                         tr_map.get_mut(&m.get_key())
                             .and_then(|trace|trace.add_trace(&msg))
                             .and_then::<Option<()>, _>(|hop|{
-                                let msg = builder.create_hop_message(&[hop]);
-                                redis::cmd("LPUSH")
-                                    .arg(&*m.get_key().to_string())
-                                    //.arg(msg.clone())
-                                    .arg(&*m.hop.to_string())
-                                    .query::<()>(&mut conn).unwrap();
+                                consume::consume_hop(client.clone(),&mut builder, &hop);
 
                                 info!("icmp-unreachable:{}\t{}->[{}]{}->\t{}",m.pkt_id, m.src,m.ttl,m.hop, m.dst);
                                 None
                             });
                     }
                     AppData::Timer(_now) =>{
-                        //cleanup...
+                        //FIXME: add cleanup...
+
                         tr_map.values_mut()
                             .filter(|tr| tr.request.is_some())
                             .filter(|tr| {

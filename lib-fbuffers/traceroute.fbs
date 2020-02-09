@@ -26,3 +26,13 @@ table Hop{
 }
 
 root_type Message;
+
+/*
+
+Nodes
+Route{route_id,src, ttl=0} -> Hop{route_id, hop, ttl = index -> Route{route_id,dst,ttl=0}
+
+Links
+Route.src -> hop[ttl].hop -> 
+
+*/
