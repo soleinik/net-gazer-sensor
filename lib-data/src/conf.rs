@@ -4,6 +4,7 @@ use std::path::Path;
 
 
 const KEY_IFACE:&str = "network.iface";
+const KEY_REPORTING_URL:&str = "reporting.url";
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
@@ -25,6 +26,11 @@ pub struct OptConf {
     /// configuration file
     #[structopt(short = "c", long = "config", env = "NG_CONFIG")]
     pub config_path: Option<String>,
+
+    /// reporting url
+    #[structopt(short = "r", long = "reporting", env = "NG_REPORTING")]
+    pub reporting_url: Option<String>,
+
 }
 
 impl Default for OptConf{
@@ -68,6 +74,10 @@ impl OptConf{
             if self.iface.is_none(){
                 self.iface = settings.get_str(KEY_IFACE).ok();
             }    
+
+            if self.reporting_url.is_none(){
+                self.reporting_url = settings.get_str(KEY_REPORTING_URL).ok();
+            }    
         }
 
         if self.iface.is_none() {
@@ -85,6 +95,10 @@ impl OptConf{
         info!("Validating configuration...");
         if self.iface.is_none(){
             error!("Network interface is not specified!");
+            std::process::exit(-1);
+        }
+        if self.reporting_url.is_none(){
+            error!("Reporting url is not specified!");
             std::process::exit(-1);
         }
         Ok(())

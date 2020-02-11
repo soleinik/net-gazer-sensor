@@ -13,5 +13,5 @@ type = "icmp" #icmp|udp|tcp|
 port = "80"
 
 
-[redis]
-url = "redis://localhost"
+[reporting]
+url = "http://127.0.0.1:8080/data"

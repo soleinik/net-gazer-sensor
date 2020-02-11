@@ -8,13 +8,11 @@ use std::collections::BTreeSet;
 use std::time::Instant;
 
 mod errors;
-mod utils;
 mod conf;
 
 #[cfg(test)] mod tests;
 
 pub use errors::*;
-pub use utils::*;
 pub use conf::*;
 
 pub type ReceiverChannel = Receiver<AppData>;

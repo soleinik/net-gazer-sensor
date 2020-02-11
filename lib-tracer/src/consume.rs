@@ -3,16 +3,18 @@ use lib_fbuffers::Builder;
 
 use async_std::task;
 
-pub fn consume_route(bldr:&mut Builder, route:& AppTraceRoute){
+pub fn consume_route(bldr:&mut Builder, route:& AppTraceRoute, url:&str){
     let data = bldr.create_route_message(&[route.clone()]);
 
     let rte = route.clone();
+    let u = url.to_owned();
+
     task::spawn(async move {
-        let resp = ureq::post("http://127.0.0.1:8080/data")
+        let resp = ureq::post(&u)
         //.set("X-My-Header", "Secret")
         .send_bytes(&data);
 
-        trace!("route[{}] http response:{:?}",rte, resp);
+        println!("route[{}] http response:{:?} url:{}",rte, resp, u);
     });
 
     crate::traceroute::process(route.request.clone().unwrap());
@@ -20,14 +22,16 @@ pub fn consume_route(bldr:&mut Builder, route:& AppTraceRoute){
 
 
 
-pub fn consume_hop(bldr:&mut Builder, hop:&AppHop){
+pub fn consume_hop(bldr:&mut Builder, hop:&AppHop, url:&str){
     let data = bldr.create_hop_message(&[hop.clone()]);
     let h = hop.clone();
+    let u = url.to_owned();
+
     task::spawn(async move {
-        let resp = ureq::post("http://127.0.0.1:8080/data")
+        let resp = ureq::post(&u)
         //.set("X-My-Header", "Secret")
         .send_bytes(&data);
-        trace!("hop[{}] http response:{:?}",h, resp);
+        println!("hop[{}] http response:{:?} url:{}",h, resp, u);
     
     });
 }
