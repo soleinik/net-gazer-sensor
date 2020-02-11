@@ -1,9 +1,0 @@
-version: '3'
-
-services:
-
-  redis:
-    image: 'redis'
-    command: [sh, -c, "rm -f /data/dump.rdb && redis-server"]  # disable persistence
-    ports:
-      - "6379:6379"
