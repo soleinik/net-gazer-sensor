@@ -14,9 +14,6 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
     info!("Starting tracer loop...");
 
 
-    let redis_url = opts.redis_url.clone().unwrap_or_else(||"redis://localhost/net-gazer".into());
-    info!("About to attempt to connect to '{}'...", redis_url);
-
     thread::spawn(move || {
 
 
@@ -31,12 +28,6 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
         let mut builder = lib_fbuffers::Builder::default();
 
         let mut  id_seq = 0u16; //0-65535
-
-
-        let client = std::sync::Arc::new(redis::Client::open(redis_url).unwrap_or_else(|e|{
-            error!("Redis connectivity failed! Error:{}",e);
-            std::process::exit(-1);
-        }));
     
         loop{
             if let Ok(msg) = rx.recv(){
@@ -61,7 +52,7 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
                             tr_map.insert(trace.get_key(), trace.clone())
                                 .and_then::<Option<()>, _>(|_| {warn!("syn trace dup:{}", m.dst); None});
 
-                            consume::consume_route(client.clone(),&mut builder, &trace);
+                            consume::consume_route(&mut builder, &trace);
 
                             }
                     }
@@ -83,7 +74,7 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
                             tr_map.insert(trace.get_key(), trace.clone())
                                 .and_then::<Option<()>, _>(|_| {warn!("synack trace dup:{}", m.dst); None});
 
-                            consume::consume_route(client.clone(),&mut builder, &trace);
+                            consume::consume_route(&mut builder, &trace);
                         }
                     }
                     AppData::IcmpReply(m) => {
@@ -98,7 +89,7 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
                                 ret
                             })                                    
                             .and_then::<Option<()>, _>(|hop|{
-                                consume::consume_hop(client.clone(),&mut builder, &hop);
+                                consume::consume_hop(&mut builder, &hop);
                                 info!("icmp-reply[compl'd]:{}\t{}->{}->\t{}, distance:{} ",m.pkt_id, m.src, m.hop, m.dst, m.pkt_seq);
                                 None
                             });
@@ -115,7 +106,7 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
                                 ret
                             })
                             .and_then::<Option<()>, _>(|hop|{
-                                consume::consume_hop(client.clone(),&mut builder, &hop);
+                                consume::consume_hop(&mut builder, &hop);
                                 info!("icmp-exeeded:{}\t{}->[{}]{}->\t{}", m.pkt_id, m.src, m.pkt_seq, m.hop, m.dst);
                                 None
                             });
@@ -126,8 +117,7 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
                         tr_map.get_mut(&m.get_key())
                             .and_then(|trace|trace.add_trace(&msg))
                             .and_then::<Option<()>, _>(|hop|{
-                                consume::consume_hop(client.clone(),&mut builder, &hop);
-
+                                consume::consume_hop(&mut builder, &hop);
                                 info!("icmp-unreachable:{}\t{}->[{}]{}->\t{}",m.pkt_id, m.src,m.ttl,m.hop, m.dst);
                                 None
                             });

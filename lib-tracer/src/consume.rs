@@ -1,37 +1,18 @@
-use std::sync::Arc;
-
-use redis::Client;
 use lib_data::{AppTraceRoute, AppHop};
 use lib_fbuffers::Builder;
 
 use async_std::task;
 
+pub fn consume_route(bldr:&mut Builder, route:& AppTraceRoute){
+    let data = bldr.create_route_message(&[route.clone()]);
 
-pub fn consume_route(client:Arc<Client>, _bldr:&mut Builder, route:& AppTraceRoute){
-    
-    let key = route.dst.clone().to_string();
-    //let data = bldr.create_route_message(&[route.clone()]);
-    let data = key.clone();
-
+    let rte = route.clone();
     task::spawn(async move {
-        if let Err(e) = client.get_connection()
-            .and_then(|mut conn| {
+        let resp = ureq::post("http://127.0.0.1:8080/data")
+        //.set("X-My-Header", "Secret")
+        .send_bytes(&data);
 
-                redis::pipe()
-                    .cmd("LPUSH")
-                        .arg(key.clone())
-                        .arg(data)
-                        .ignore()
-                    .cmd("EXPIRE")
-                        .arg(key.clone())
-                        .arg(1000 * 60)
-                        .ignore()
-                .query::<()>(&mut conn)
-
-            }){
-                error!("redis: unable to send! Error:{}", e);
-            }
-    
+        trace!("route[{}] http response:{:?}",rte, resp);
     });
 
     crate::traceroute::process(route.request.clone().unwrap());
@@ -39,23 +20,14 @@ pub fn consume_route(client:Arc<Client>, _bldr:&mut Builder, route:& AppTraceRou
 
 
 
-pub fn consume_hop(client:Arc<Client>, _bldr:&mut Builder, hop:&AppHop){
-
-    let key = hop.dst.clone().to_string();
-    //let data = bldr.create_hop_message(&[hop.clone()]);
-    let data = hop.hop.clone().to_string();
-
+pub fn consume_hop(bldr:&mut Builder, hop:&AppHop){
+    let data = bldr.create_hop_message(&[hop.clone()]);
+    let h = hop.clone();
     task::spawn(async move {
-
-        if let Err(e) = client.get_connection()
-            .and_then(|mut conn| {
-                redis::cmd("LPUSH")
-                    .arg(key.clone()).arg(data)
-                .query::<()>(&mut conn)
-            }){
-                error!("redis: unable to send! Error:{}", e);
-            }
+        let resp = ureq::post("http://127.0.0.1:8080/data")
+        //.set("X-My-Header", "Secret")
+        .send_bytes(&data);
+        trace!("hop[{}] http response:{:?}",h, resp);
     
     });
-
 }

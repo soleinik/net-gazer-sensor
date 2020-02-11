@@ -4,8 +4,6 @@ use std::path::Path;
 
 
 const KEY_IFACE:&str = "network.iface";
-const KEY_REDIS_URL:&str = "redis.url";
-
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
@@ -27,11 +25,6 @@ pub struct OptConf {
     /// configuration file
     #[structopt(short = "c", long = "config", env = "NG_CONFIG")]
     pub config_path: Option<String>,
-
-    /// url to connect to redis instance
-    #[structopt(long = "redis", env = "NG_REDIS_URL")]
-    pub redis_url: Option<String>,
-
 }
 
 impl Default for OptConf{
@@ -75,10 +68,6 @@ impl OptConf{
             if self.iface.is_none(){
                 self.iface = settings.get_str(KEY_IFACE).ok();
             }    
-
-            if self.redis_url.is_none(){
-                self.redis_url = settings.get_str(KEY_REDIS_URL).ok();
-            }    
         }
 
         if self.iface.is_none() {
@@ -98,11 +87,6 @@ impl OptConf{
             error!("Network interface is not specified!");
             std::process::exit(-1);
         }
-        if self.redis_url.is_none(){
-            error!("redis url is not specified!");
-            std::process::exit(-1);
-        }
-    
         Ok(())
     }
 

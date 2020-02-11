@@ -10,13 +10,8 @@ edition = "2018"
 lib-data = { path="../lib-data" }
 lib-fbuffers = { path="../lib-fbuffers" }
 
-
 log = "0.4.8"
 pnet = "0.23"
 
-
 async-std = { version="1.4", default-features = true, features=["attributes"] }
-
-crossbeam-deque = "0.7"
-
-redis = "0.15.1"
+ureq = { version = "0.11.4", default-features = false,  features = ["rustls"] }
