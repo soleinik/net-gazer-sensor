@@ -29,7 +29,7 @@ impl Builder<'_> {
 
     pub fn create_hop_message(&mut self, hops:&[AppHop]) -> Vec<u8>{
         let mut msg = Vec::<u8>::new();
-        self.bldr.reset();
+        self.reset();
 
         let mut args = MessageArgs::default();
         args.seq = self.seq;
@@ -44,6 +44,7 @@ impl Builder<'_> {
         args.hops = Some(self.bldr.create_vector(&hops_vec));
 
         let message_offset = Message::create(&mut self.bldr, &args);
+
         finish_message_buffer(&mut self.bldr, message_offset);
         let finished_data = self.bldr.finished_data();
         msg.extend_from_slice(finished_data);
@@ -53,7 +54,7 @@ impl Builder<'_> {
     pub fn create_route_message(&mut self, routes:&[AppTraceRoute]) -> Vec<u8>{
 
         let mut msg = Vec::<u8>::new();
-        self.bldr.reset();
+        self.reset();
     
         let mut args = MessageArgs::default();
         args.seq = self.seq;
