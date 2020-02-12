@@ -89,9 +89,11 @@ impl From<& AppTraceRoute> for RouteArgs {
 impl From<& AppHop> for HopArgs {
     fn from(from: & AppHop) -> Self {
         HopArgs{
-            hop: from.hop.into(),
-            ttl: from.ttl,
             route_id: from.pkt_id,
+            src: from.src.into(),
+            this:from.this.into(),
+            
+            ttl: from.ttl,
             rtt: from.rtt
         }
     }

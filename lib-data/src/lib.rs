@@ -1,10 +1,12 @@
 #[macro_use] extern crate failure;
 #[macro_use] extern crate log;
 
+use std::collections::BTreeSet;
+
 use std::sync::mpsc::{ Sender, Receiver };
 use std::net::Ipv4Addr;
 use std::fmt;
-use std::collections::BTreeSet;
+
 use std::time::Instant;
 
 mod errors;
@@ -113,7 +115,7 @@ pub struct AppTraceRoute{
     // this_ip - mid - dst
     pub src: Ipv4Addr,
     pub dst: Ipv4Addr,
-    pub trace: BTreeSet<AppHop>,
+    pub trace: Vec<AppHop>,
     pub pkt_id: u16,
 
     pub ttl:u8,
@@ -125,7 +127,7 @@ pub struct AppTraceRoute{
 
 impl AppTraceRoute{
     pub fn new(src: Ipv4Addr, dst: Ipv4Addr, pkt_id:u16) -> Self{
-        let mut ret_val = AppTraceRoute{src, dst, pkt_id, trace:BTreeSet::<AppHop>::new(), ttl:1u8, request:None};
+        let mut ret_val = AppTraceRoute{src, dst, pkt_id, trace:Vec::<AppHop>::new(), ttl:1u8, request:None};
         ret_val.request = Some(AppTraceRouteTask::from(&ret_val));
         ret_val
     }
@@ -169,10 +171,15 @@ impl AppTraceRoute{
             AppData::IcmpReply(m)  =>{
                 debug!("ICMP-Reply: {}", m);
                 
-                let hop = AppHop::new(m.dst, m.pkt_seq as u8, m.pkt_id, m.hop, self.get_rtt(m));
+                let mut hop = AppHop::new(m.src, m.hop, m.pkt_seq as u8, m.pkt_id, self.get_rtt(m));
                 
                 if !self.trace.contains(&hop){
-                    self.trace.insert(hop.clone());
+
+                    if let Some(last) = self.trace.last(){
+                        hop.src = last.this;
+                    }
+
+                    self.trace.push(hop.clone());
                     if m.hop == self.dst{
                         self.request = None;
                     }else{
@@ -185,9 +192,14 @@ impl AppTraceRoute{
             AppData::IcmpExceeded(m)  => {
                 debug!("ICMP-Exceeded: {}", m);
 
-                let hop = AppHop::new(m.dst, m.pkt_seq as u8, m.pkt_id, m.hop, self.get_rtt(m)); //pkt.ttl is reverse ttl and is not reliable...
+                let mut hop = AppHop::new(m.src, m.hop, m.pkt_seq as u8, m.pkt_id, self.get_rtt(m)); //pkt.ttl is reverse ttl and is not reliable...
                 if !self.trace.contains(&hop){
-                    self.trace.insert(hop.clone()); //self.trace.len() + 1 = next ttl
+
+                    if let Some(last) = self.trace.last(){
+                        hop.src = last.this;
+                    }
+
+                    self.trace.push(hop.clone()); //self.trace.len() + 1 = next ttl
                     if m.hop == self.dst{
                         self.request = None;
                     }else{
@@ -200,9 +212,16 @@ impl AppTraceRoute{
             AppData::IcmpUnreachable(m)  =>{
                 debug!("ICMP-Unreachable: {}", m);
 
-                let hop = AppHop::new(m.dst, m.pkt_seq as u8, m.pkt_id, m.hop, self.get_rtt(m));
+                let mut hop = AppHop::new(m.src, m.hop, m.pkt_seq as u8, m.pkt_id, self.get_rtt(m));
                 if !self.trace.contains(&hop){
-                    self.trace.insert(hop.clone());
+
+                    if let Some(last) = self.trace.last(){
+                        hop.src = last.this;
+                    }
+
+                    self.trace.push(hop.clone());
+
+
                     if m.hop == self.dst{
                         self.request = None;
                     }else{
@@ -265,19 +284,19 @@ impl fmt::Display for AppTraceRouteTask{
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct AppHop{
-    pub dst: Ipv4Addr,
+    pub src: Ipv4Addr,
+    pub this: Ipv4Addr,
     pub ttl:u8,
     pub pkt_id: u16,
-    pub hop: Ipv4Addr,
     pub rtt: u16,
 }
 impl AppHop{
-    pub fn new(dst:Ipv4Addr, ttl:u8, pkt_id: u16, hop:Ipv4Addr, rtt:u16) -> Self{
-        AppHop{dst, ttl,pkt_id, hop, rtt}
+    pub fn new(src:Ipv4Addr, this:Ipv4Addr, ttl:u8, pkt_id: u16, rtt:u16) -> Self{
+        AppHop{src, this, ttl,pkt_id, rtt}
     }
 }
 impl fmt::Display for AppHop{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{}", self.ttl, self.hop)
+        write!(f, "{}:{}->{}", self.ttl, self.src, self.this)
     }
 }

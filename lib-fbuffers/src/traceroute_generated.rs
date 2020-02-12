@@ -2,11 +2,11 @@
 
 
 
-//use std::mem;
-//use std::cmp::Ordering;
+use std::mem;
+use std::cmp::Ordering;
 
 extern crate flatbuffers;
-//use self::flatbuffers::EndianScalar;
+use self::flatbuffers::EndianScalar;
 
 pub enum MessageOffset {}
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -237,7 +237,8 @@ impl<'a> Hop<'a> {
         _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr>,
         args: &'args HopArgs) -> flatbuffers::WIPOffset<Hop<'bldr>> {
       let mut builder = HopBuilder::new(_fbb);
-      builder.add_hop(args.hop);
+      builder.add_this(args.this);
+      builder.add_src(args.src);
       builder.add_rtt(args.rtt);
       builder.add_route_id(args.route_id);
       builder.add_ttl(args.ttl);
@@ -245,17 +246,22 @@ impl<'a> Hop<'a> {
     }
 
     pub const VT_ROUTE_ID: flatbuffers::VOffsetT = 4;
-    pub const VT_HOP: flatbuffers::VOffsetT = 6;
-    pub const VT_TTL: flatbuffers::VOffsetT = 8;
-    pub const VT_RTT: flatbuffers::VOffsetT = 10;
+    pub const VT_SRC: flatbuffers::VOffsetT = 6;
+    pub const VT_THIS: flatbuffers::VOffsetT = 8;
+    pub const VT_TTL: flatbuffers::VOffsetT = 10;
+    pub const VT_RTT: flatbuffers::VOffsetT = 12;
 
   #[inline]
   pub fn route_id(&self) -> u16 {
     self._tab.get::<u16>(Hop::VT_ROUTE_ID, Some(0)).unwrap()
   }
   #[inline]
-  pub fn hop(&self) -> u32 {
-    self._tab.get::<u32>(Hop::VT_HOP, Some(0)).unwrap()
+  pub fn src(&self) -> u32 {
+    self._tab.get::<u32>(Hop::VT_SRC, Some(0)).unwrap()
+  }
+  #[inline]
+  pub fn this(&self) -> u32 {
+    self._tab.get::<u32>(Hop::VT_THIS, Some(0)).unwrap()
   }
   #[inline]
   pub fn ttl(&self) -> u8 {
@@ -269,7 +275,8 @@ impl<'a> Hop<'a> {
 
 pub struct HopArgs {
     pub route_id: u16,
-    pub hop: u32,
+    pub src: u32,
+    pub this: u32,
     pub ttl: u8,
     pub rtt: u16,
 }
@@ -278,7 +285,8 @@ impl<'a> Default for HopArgs {
     fn default() -> Self {
         HopArgs {
             route_id: 0,
-            hop: 0,
+            src: 0,
+            this: 0,
             ttl: 0,
             rtt: 0,
         }
@@ -294,8 +302,12 @@ impl<'a: 'b, 'b> HopBuilder<'a, 'b> {
     self.fbb_.push_slot::<u16>(Hop::VT_ROUTE_ID, route_id, 0);
   }
   #[inline]
-  pub fn add_hop(&mut self, hop: u32) {
-    self.fbb_.push_slot::<u32>(Hop::VT_HOP, hop, 0);
+  pub fn add_src(&mut self, src: u32) {
+    self.fbb_.push_slot::<u32>(Hop::VT_SRC, src, 0);
+  }
+  #[inline]
+  pub fn add_this(&mut self, this: u32) {
+    self.fbb_.push_slot::<u32>(Hop::VT_THIS, this, 0);
   }
   #[inline]
   pub fn add_ttl(&mut self, ttl: u8) {
