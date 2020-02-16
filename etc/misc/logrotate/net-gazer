@@ -1,0 +1,12 @@
+/var/log/net-gazer.log {
+    daily
+    missingok
+    rotate 14
+    compress
+    notifempty
+    create 0640 net-gazer net-gazer
+    #sharedscripts
+    postrotate
+        systemctl reload net-gazer
+    endscript    
+}

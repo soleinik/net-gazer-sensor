@@ -5,8 +5,8 @@ Description= net-gazer sensor service
 AssertPathExists=/usr/local/bin/net-gazer
 
 [Service]
-User=nobody
-Group=nogroup
+User=net-gazer
+Group=net-gazer
 
 Type=simple
 ExecStart=/usr/local/bin/net-gazer

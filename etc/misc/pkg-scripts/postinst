@@ -1,11 +1,14 @@
-#!/bin/sh
+#!/bin/bash
 
 echo "preinst $1"
 
 setcap cap_net_admin,cap_net_raw=eip /usr/local/bin/net-gazer
-getcap /usr/local/bin/net-gazer > /dev/null
+
+id -u net-gazer &>/dev/null || adduser --system --no-create-home --group net-gazer
 
 systemctl daemon-reload
-systemctl start net-gazer.service
+
+echo "(re)starting service..."
+systemctl restart net-gazer.service
 systemctl enable net-gazer.service
 exit 0
