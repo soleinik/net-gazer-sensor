@@ -1,0 +1,23 @@
+# net-gazer.service
+
+[Unit]
+Description= net-gazer sensor service
+AssertPathExists=/usr/local/bin/net-gazer
+
+[Service]
+User=nobody
+Group=nogroup
+
+Type=simple
+ExecStart=/usr/local/bin/net-gazer
+ExecReload=/bin/kill -HUP $MAINPID
+Nice=5
+
+StandardOutput=journal
+StandardError=journal
+
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -1,8 +1,11 @@
 [package]
+publish = false
 name = "net-gazer"
 version = "0.1.0"
 authors = ["Serguei Oleinik <162591+soleinik@users.noreply.github.com>"]
 edition = "2018"
+repository = "https://github.com/soleinik/net-gazer-sensor"
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -28,3 +31,29 @@ async-std = { version = "1.5.0", default-features = true, features = ["attribute
 #futures = "0.3"
 
 bitflags = "1.2.1"
+
+
+
+[package.metadata.deb]
+depends = "$auto,systemd,rsyslog"
+section = "utils"
+priority = "optional"
+assets = [
+    # binary
+    ["target/release/net-gazer", "usr/local/bin/", "755"],
+    # config
+    ["etc/net-gazer/net-gazer.toml", "usr/local/etc/net-gazer/net-gazer.toml", "644"],
+    # systemd unit
+    ["etc/misc/systemd/net-gazer.service", "lib/systemd/system/", "644"],
+    # rsyslog.d
+    ["etc/misc/rsyslog.d/60-net-gazer.conf", "etc/rsyslog.d/", "644"],
+
+    # assets
+    ["LICENSE", "/usr/share/doc/net-gazer/", "644"],
+]
+
+maintainer-scripts = "etc/misc/pkg-scripts"
+conf-files=[
+    "usr/local/etc/net-gazer/net-gazer.toml",
+]
+
