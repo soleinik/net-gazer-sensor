@@ -148,7 +148,12 @@ impl AppTraceRoute{
     fn get_rtt(&self, m:&AppIcmp) -> u16{
         if let Some(req) = self.request.clone(){
             if req.pkt_id == m.pkt_id{
-            m.ts.duration_since(req.ts).as_millis() as u16    
+                //FIXME: something is not right here
+                match req.ts.cmp(&m.ts){
+                    std::cmp::Ordering::Less => m.ts.duration_since(req.ts).as_millis() as u16,
+                    std::cmp::Ordering::Greater => req.ts.duration_since(m.ts).as_millis() as u16,
+                    std::cmp::Ordering::Equal => 0
+                }
             }else{
                 std::u16::MAX
             }

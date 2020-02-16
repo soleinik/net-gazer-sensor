@@ -25,6 +25,7 @@ pub use lib_data::*;
 
 extern crate lib_tracer;
 extern crate lib_fbuffers;
+extern crate lib_comm;
 
 
 #[async_std::main]
@@ -106,15 +107,16 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
+    //reporting...
+    let (comm_sender, comm_receiver): (lib_comm::CommTxChannel,lib_comm::CommRxChannel) = mpsc::channel();
+    lib_comm::start(comm_receiver, &opt);
+
     //communication via async channels - unbounded queue, watch for OOM. 
     // 1:1 producer:consumer
     let (data_sender, data_receiver): (lib_data::SenderChannel,lib_data::ReceiverChannel) = mpsc::channel();
 
-
-    lib_tracer::start(data_receiver, ip, &opt);
+    lib_tracer::start(data_receiver, ip, comm_sender);
     lib_tracer::timer_start(data_sender.clone());
-
-
 
     info!("Starting listener loop...");
     loop{

@@ -7,13 +7,17 @@ mod consume;
 use std::thread;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
+use std::sync::mpsc::Sender;
 
-use lib_data::{AppData, ReceiverChannel, AppTcp, AppTraceRoute, AppTraceRouteTask, OptConf};
+use lib_data::{AppData, ReceiverChannel, AppTcp, AppTraceRoute, AppTraceRouteTask};
 
-pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
+
+pub type CommMessage = (u8, Vec<u8>);
+pub type CommTxChannel = Sender<CommMessage>;
+
+
+pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr,comm_tx:CommTxChannel){
     info!("Starting tracer loop...");
-
-    let reporting_url = opts.reporting_url.clone().unwrap();
 
     thread::spawn(move || {
 
@@ -54,7 +58,7 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
                             tr_map.insert(trace.get_key(), trace.clone())
                                 .and_then::<Option<()>, _>(|_| {warn!("syn trace dup:{}", m.dst); None});
 
-                            consume::consume_route(&mut builder, &trace, &reporting_url);
+                            consume::consume_route(&mut builder, &trace, &comm_tx);
 
                         }
                     }
@@ -76,7 +80,7 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
                             tr_map.insert(trace.get_key(), trace.clone())
                                 .and_then::<Option<()>, _>(|_| {warn!("synack trace dup:{}", m.dst); None});
 
-                            consume::consume_route(&mut builder, &trace, &reporting_url);
+                            consume::consume_route(&mut builder, &trace, &comm_tx);
                         }
                     }
                     AppData::IcmpReply(m) => {
@@ -91,7 +95,7 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
                                 ret
                             })                                    
                             .and_then::<Option<()>, _>(|hop|{
-                                consume::consume_hop(&mut builder, &hop, &reporting_url);
+                                consume::consume_hop(&mut builder, &hop, &comm_tx);
                                 info!("icmp-reply[compl'd]:{}\t{}->{}->\t{}, distance:{} ",m.pkt_id, m.src, m.hop, m.dst, m.pkt_seq);
                                 None
                             });
@@ -108,7 +112,7 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
                                 ret
                             })
                             .and_then::<Option<()>, _>(|hop|{
-                                consume::consume_hop(&mut builder, &hop, &reporting_url);
+                                consume::consume_hop(&mut builder, &hop, &comm_tx);
                                 info!("icmp-exeeded:{}\t{}->[{}]{}->\t{}", m.pkt_id, m.src, m.pkt_seq, m.hop, m.dst);
                                 None
                             });
@@ -119,7 +123,7 @@ pub fn start(rx:ReceiverChannel, ip: std::net::Ipv4Addr, opts:& OptConf){
                         tr_map.get_mut(&m.get_key())
                             .and_then(|trace|trace.add_trace(&msg))
                             .and_then::<Option<()>, _>(|hop|{
-                                consume::consume_hop(&mut builder, &hop, &reporting_url);
+                                consume::consume_hop(&mut builder, &hop, &comm_tx);
                                 info!("icmp-unreachable:{}\t{}->[{}]{}->\t{}",m.pkt_id, m.src,m.ttl,m.hop, m.dst);
                                 None
                             });

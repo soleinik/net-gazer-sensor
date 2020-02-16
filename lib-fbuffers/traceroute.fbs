@@ -3,7 +3,6 @@
 
 table Message{
     seq:uint64;         //message sequence
-    uptime:uint64;      //
     routes:[Route];     //new routes
     hops:  [Hop];       //route hops
 }
@@ -24,13 +23,6 @@ table Hop{
 
     ttl:ubyte;          //time to live, also hop id
     rtt:uint16;         //round trip time
-}
-
-table MessageEnvelop{
-    seq:uint64;         //message sequence
-    uptime:uint64;      //sensor uptime, in seconds
-    payload_type:u8;    //id
-    payload:[u8]        //
 }
 
 

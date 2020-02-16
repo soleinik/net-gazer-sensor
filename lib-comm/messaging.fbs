@@ -1,0 +1,12 @@
+// messaging.fbs
+
+
+table Message{
+    seq:uint64;         //message sequence
+    uptime:uint64;      //sensor uptime, in seconds
+    ptype:ubyte;        //id
+    payload:[ubyte];     //
+    sensor_id:string;
+}
+
+root_type Message;
