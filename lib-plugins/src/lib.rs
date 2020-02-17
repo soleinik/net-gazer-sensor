@@ -3,7 +3,7 @@ extern crate libloading;
 use libloading::{Library, Symbol};
 use net_gazer_core::{Plugin, CoreSender};
 use pnet::packet::ethernet::EthernetPacket;
-
+use pnet::datalink::NetworkInterface;
 
 #[derive(Default)]
 pub struct PluginManager{
@@ -18,7 +18,7 @@ type PluginCreate = unsafe fn() -> *mut dyn Plugin;
 
 impl PluginManager{
 
-    pub fn new() -> Self{
+    pub fn new(iface:&NetworkInterface) -> Self{
 
         let mut p_manager = PluginManager::default();
 
@@ -34,7 +34,7 @@ impl PluginManager{
                                     let boxed_raw = fn_creator();
                                     let plugin = Box::from_raw(boxed_raw);
                                     debug!("plugin [{}] \"{}\" is found! Initializing...", plugin.get_id(), plugin.get_name());
-                                    plugin.on_load();
+                                    plugin.on_load(iface);
                                     p_manager.libraries.push(lib);
                                     p_manager.plugins.push(plugin);
                                 }

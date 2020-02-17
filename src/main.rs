@@ -2,29 +2,10 @@ use std::sync::mpsc;
 
 use pnet::datalink::{ self, Channel, Config, channel};
 
-use pnet::packet::ethernet::{EthernetPacket, EtherTypes};
-use pnet::packet::ipv4::Ipv4Packet;
-use pnet::packet::Packet;
-use pnet::packet::ip::IpNextHeaderProtocols;
-use pnet::packet::tcp::{TcpPacket, TcpOptionNumbers};
-use pnet::packet::icmp::{
-    IcmpPacket, IcmpTypes, 
-    echo_reply::EchoReplyPacket, 
-    time_exceeded::TimeExceededPacket, 
-    echo_request::EchoRequestPacket, 
-    destination_unreachable::DestinationUnreachablePacket
-};
-
-use std::time::Instant;
-
-//use async_std::prelude::*;
+use pnet::packet::ethernet::EthernetPacket;
 
 #[macro_use] extern crate log;
-extern crate lib_data;
-pub use lib_data::*;
 
-extern crate lib_tracer;
-extern crate lib_fbuffers;
 extern crate lib_comm;
 extern crate lib_plugins;
 
@@ -75,10 +56,6 @@ async fn main() -> std::io::Result<()> {
         })
         .find(|net| net.is_some()).flatten().unwrap();
 
-    //need ip
-    let ip = net.ip();
-    
-
     info!("Setting up interceptor on {} [{}]", net_iface.name, mac);
     info!("Detected networks:");
     net_iface.ips.iter()
@@ -95,7 +72,7 @@ async fn main() -> std::io::Result<()> {
     //     rollover: false,
     // });
 
-    let plugins = lib_plugins::PluginManager::new();
+    let plugins = lib_plugins::PluginManager::new(&net_iface);
     if plugins.is_empty(){
         error!("No plugins found! System is not operational - aborting...");
         std::process::exit(-4);
@@ -119,14 +96,6 @@ async fn main() -> std::io::Result<()> {
     let (comm_sender, comm_receiver): (lib_comm::CommTxChannel,lib_comm::CommRxChannel) = mpsc::channel();
     lib_comm::start(comm_receiver, &opt);
 
-    // //communication via async channels - unbounded queue, watch for OOM. 
-    // // 1:1 producer:consumer
-    // let (data_sender, data_receiver): (lib_data::SenderChannel,lib_data::ReceiverChannel) = mpsc::channel();
-
-    // lib_tracer::start(data_receiver, ip, comm_sender.clone());
-    // lib_tracer::timer_start(data_sender);
-
-
     info!("Starting listener loop...");
     loop{
         if let Ok(data) = rx.next(){ //this will timeout, as configured
@@ -139,32 +108,3 @@ async fn main() -> std::io::Result<()> {
         }
     }
 }
-
-use pnet::packet::tcp::TcpFlags;
-#[macro_use] extern crate bitflags;
-
-bitflags! {
-    struct Flags: u16 {
-        const SYN = TcpFlags::SYN; //2
-        const URG = TcpFlags::URG; //32
-        const ACK = TcpFlags::ACK; //16
-        const PSH = TcpFlags::PSH; //8
-        const RST = TcpFlags::RST; //4
-        const FIN = TcpFlags::FIN; //1
-
-        const CWR = TcpFlags::CWR; //
-        const ECE = TcpFlags::ECE; //
-    }
-}
-
-fn has_bit(flags:u16, bit:Flags) -> bool{
-    if let Some(s) = Flags::from_bits(flags){
-        return s.contains(bit);
-    }
-    false
-}
-
-// fn decode(flags:u16)-> String{
-//     format!("{:?}", Flags::from_bits(flags).unwrap())
-
-// }

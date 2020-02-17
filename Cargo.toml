@@ -11,17 +11,13 @@ description = "net-gazer - packet inspection framework, core component to run pl
 
 [workspace]
 members=[
-    "lib-tracer",
     "lib-data",
-    "lib-fbuffers",
     "lib-comm",
     "lib-plugins",
 ]
 
 [dependencies]
-lib-tracer = { path="./lib-tracer" }
 lib-data = { path="./lib-data" }
-lib-fbuffers = { path="./lib-fbuffers" }
 lib-comm = { path="./lib-comm" }
 lib-plugins = { path="./lib-plugins" }
 
