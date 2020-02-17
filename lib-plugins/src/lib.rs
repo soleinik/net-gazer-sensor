@@ -32,7 +32,7 @@ impl PluginManager{
                             match lib.get::<Symbol<PluginCreate>>(ENTRY_POINT){
                                 Ok(fn_creator) => {
                                     let boxed_raw = fn_creator();
-                                    let plugin = Box::from_raw(boxed_raw);
+                                    let mut plugin = Box::from_raw(boxed_raw);
                                     debug!("plugin [{}] \"{}\" is found! Initializing...", plugin.get_id(), plugin.get_name());
                                     plugin.on_load(iface);
                                     p_manager.libraries.push(lib);
