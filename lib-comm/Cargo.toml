@@ -7,7 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+net-gazer-core = { git = "https://github.com/soleinik/net-gazer-core", branch = "master"}
 lib-data = { path="../lib-data" }
+
 
 log = "0.4.8"
 

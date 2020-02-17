@@ -72,7 +72,12 @@ async fn main() -> std::io::Result<()> {
     //     rollover: false,
     // });
 
-    let plugins = lib_plugins::PluginManager::new(&net_iface);
+    //reporting...
+    let (comm_sender, comm_receiver): (lib_comm::CommTxChannel,lib_comm::CommRxChannel) = mpsc::channel();
+    lib_comm::start(comm_receiver, &opt);
+
+
+    let plugins = lib_plugins::PluginManager::new(&net_iface, comm_sender);
     if plugins.is_empty(){
         error!("No plugins found! System is not operational - aborting...");
         std::process::exit(-4);
@@ -92,16 +97,13 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
-    //reporting...
-    let (comm_sender, comm_receiver): (lib_comm::CommTxChannel,lib_comm::CommRxChannel) = mpsc::channel();
-    lib_comm::start(comm_receiver, &opt);
 
     info!("Starting listener loop...");
     loop{
         if let Ok(data) = rx.next(){ //this will timeout, as configured
             match EthernetPacket::new(data){
                 Some(ethernet_packet) => {
-                    plugins.process(comm_sender.clone(), &ethernet_packet);
+                    plugins.process(&ethernet_packet);
                 }
                 None => continue
             }

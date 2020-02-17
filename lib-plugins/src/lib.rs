@@ -18,7 +18,7 @@ type PluginCreate = unsafe fn() -> *mut dyn Plugin;
 
 impl PluginManager{
 
-    pub fn new(iface:&NetworkInterface) -> Self{
+    pub fn new(iface:&NetworkInterface, tx:CoreSender) -> Self{
 
         let mut p_manager = PluginManager::default();
 
@@ -34,7 +34,7 @@ impl PluginManager{
                                     let boxed_raw = fn_creator();
                                     let mut plugin = Box::from_raw(boxed_raw);
                                     debug!("plugin [{}] \"{}\" is found! Initializing...", plugin.get_id(), plugin.get_name());
-                                    plugin.on_load(iface);
+                                    plugin.on_load(iface, tx.clone());
                                     p_manager.libraries.push(lib);
                                     p_manager.plugins.push(plugin);
                                 }
@@ -60,9 +60,9 @@ impl PluginManager{
     }
 
 
-    pub fn process(&self, tx:CoreSender, pkt:& EthernetPacket){
+    pub fn process(&self, pkt:& EthernetPacket){
         //FIXME: parallel
-        self.plugins.iter().for_each(|p| p.process(tx.clone(), pkt));
+        self.plugins.iter().for_each(|p| p.process(pkt));
     }
 }
 

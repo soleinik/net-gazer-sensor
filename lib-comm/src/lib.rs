@@ -2,21 +2,22 @@
 extern crate async_std;
 
 extern crate lib_data;
+extern crate net_gazer_core;
 
 #[allow(dead_code)]
 #[allow(unused_imports)]
 mod messaging_generated;
 use messaging_generated::*;
 
+
+use net_gazer_core::{CoreMessage, CoreSender, CoreReceiver};
 use std::time::Instant;
 use std::thread;
-use std::sync::mpsc::{Receiver, Sender};
 use async_std::task;
 
 
-pub type CommMessage = (u8, Vec<u8>);
-pub type CommRxChannel = Receiver<CommMessage>;
-pub type CommTxChannel = Sender<CommMessage>;
+pub type CommRxChannel = CoreReceiver;
+pub type CommTxChannel = CoreSender;
 
 pub fn start(rx:CommRxChannel, conf:& lib_data::OptConf ){
 
@@ -72,7 +73,7 @@ impl <'fbb> Builder<'fbb> {
         self.seq += 1; //FIXME: overflow
     }
 
-    pub fn create_message(&mut self, comm_msg:&CommMessage) -> Vec<u8>{
+    pub fn create_message(&mut self, comm_msg:&CoreMessage) -> Vec<u8>{
         let mut msg = Vec::<u8>::new();
         self.reset();
 
