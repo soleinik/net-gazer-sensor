@@ -26,6 +26,7 @@ pub use lib_data::*;
 extern crate lib_tracer;
 extern crate lib_fbuffers;
 extern crate lib_comm;
+extern crate lib_plugins;
 
 
 #[async_std::main]
@@ -115,15 +116,22 @@ async fn main() -> std::io::Result<()> {
     // 1:1 producer:consumer
     let (data_sender, data_receiver): (lib_data::SenderChannel,lib_data::ReceiverChannel) = mpsc::channel();
 
-    lib_tracer::start(data_receiver, ip, comm_sender);
+    lib_tracer::start(data_receiver, ip, comm_sender.clone());
     lib_tracer::timer_start(data_sender.clone());
 
     info!("Starting listener loop...");
+    let plugins = lib_plugins::PluginManager::new();
+    println!("plugins:{}", plugins.plugins.len());
     loop{
         if let Ok(data) = rx.next(){ //this will timeout, as configured
 
             match EthernetPacket::new(data){
                 Some(ethernet_packet) => {
+
+                    //plugins.process(&comm_sender, ethernet_packet);
+
+
+
 
                     match ethernet_packet.get_ethertype(){
                         EtherTypes::Ipv4 => {

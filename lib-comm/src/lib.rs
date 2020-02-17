@@ -41,7 +41,6 @@ pub fn start(rx:CommRxChannel, conf:& lib_data::OptConf ){
                 });
             }
         }
-
     });
 }
 
