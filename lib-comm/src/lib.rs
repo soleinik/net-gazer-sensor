@@ -1,8 +1,10 @@
-
 #[macro_use] extern crate log;
 extern crate async_std;
 
 extern crate lib_data;
+
+#[allow(dead_code)]
+#[allow(unused_imports)]
 mod messaging_generated;
 use messaging_generated::*;
 
