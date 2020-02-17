@@ -8,6 +8,8 @@ edition = "2018"
 
 [dependencies]
 net-gazer-core = { git = "https://github.com/soleinik/net-gazer-core", branch = "master"}
+
+
 log = "0.4.8"
 pnet = "0.25.0"
 libloading = "0.5.2"

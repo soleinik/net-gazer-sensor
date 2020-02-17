@@ -6,40 +6,41 @@ use pnet::packet::ethernet::EthernetPacket;
 
 
 #[derive(Default)]
-pub struct PluginManager<'p,'d>{
-    pub plugins: Vec<Box<dyn Plugin<'p, EthernetPacket<'d>>>>,
+pub struct PluginManager{
+    pub plugins: Vec<Box<dyn Plugin>>,
     pub libraries: Vec<Library>
-
 }
 
 const LIB_LOCATION: &str = "/usr/local/lib/net-gazer";
+const ENTRY_POINT: &[u8] = b"net_gazer_plugin_new";
 
-type PluginCreate<'p,'d> = unsafe fn() -> *mut dyn Plugin<'p, EthernetPacket<'d>>;
+type PluginCreate = unsafe fn() -> *mut dyn Plugin;
 
-impl <'p,'d> PluginManager<'p, 'd>{
+impl PluginManager{
 
     pub fn new() -> Self{
 
-        let mut p_manager = PluginManager::<'p,'d>::default();
+        let mut p_manager = PluginManager::default();
 
         if let Some(list) = discover(){
             for lib_name in list{
-                info!("about to load library \"{}\"...", lib_name);
+                debug!("about to load library \"{}\"...", lib_name);
                 match Library::new(lib_name.clone()){
                     Ok(lib) => {
-                        info!("library \"{}\" loaded! Looking for plugin entry point...", lib_name);
+                        debug!("library \"{}\" loaded! Looking for plugin entry point...", lib_name);
                         unsafe {
-                            match lib.get::<Symbol<PluginCreate>>(b"net_gazer_plugin_new"){
+                            match lib.get::<Symbol<PluginCreate>>(ENTRY_POINT){
                                 Ok(fn_creator) => {
                                     let boxed_raw = fn_creator();
                                     let plugin = Box::from_raw(boxed_raw);
-                                    info!("plugin [{}] \"{}\" is found! Initializing...", plugin.get_id(), plugin.get_name());
+                                    debug!("plugin [{}] \"{}\" is found! Initializing...", plugin.get_id(), plugin.get_name());
                                     plugin.on_load();
-                                    info!("plugin [{}] \"{}\" is fully operational!", plugin.get_id(), plugin.get_name());
                                     p_manager.libraries.push(lib);
                                     p_manager.plugins.push(plugin);
                                 }
-                                Err(e) => error!("No plugin entry point found in library[{}]. Error:{}", lib_name, e)
+                                Err(e) => error!("Unable to find plugin entry point[{}] in library[{}]. Error:{}", 
+                                    std::str::from_utf8_unchecked(ENTRY_POINT), lib_name, e
+                                )
                             }
                         }
                     }
@@ -51,10 +52,18 @@ impl <'p,'d> PluginManager<'p, 'd>{
         p_manager
     }
     
-    pub fn process(&self, tx:&CoreSender, pkt:EthernetPacket<'d>){
-        self.plugins.iter().for_each(|p| p.process(tx, &pkt));
+    pub fn len(&self) -> usize{
+        self.plugins.len()
+    }
+    pub fn is_empty(&self) -> bool{
+        self.plugins.len() < 1
     }
 
+
+    pub fn process(&self, tx:CoreSender, pkt:& EthernetPacket){
+        //FIXME: parallel
+        self.plugins.iter().for_each(|p| p.process(tx.clone(), pkt));
+    }
 }
 
 
