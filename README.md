@@ -63,7 +63,7 @@ $ cargo install cargo-deb
 ```
 # systemctl stop net-gazer
 ```
-4. build plugin (from plugin repo buld deb and install with dpkg)
+4. build plugin (from plugin repo build deb and install with dpkg)
 
 5. build and run net-gazer-web
 ```
