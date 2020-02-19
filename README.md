@@ -87,7 +87,7 @@ to see 5 "neighbour" hopes
 ```
 MATCH (a:hop{ip:'192.168.<your>.<ip>'})-[next*1..5]->(ancestors) RETURN a, ancestors
 ```
-9. to remove everything (ofter done)
+10. to remove everything (ofter done)
 ```
 # apt-get purge net-gazer
 ```
