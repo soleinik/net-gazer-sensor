@@ -59,7 +59,7 @@ $ cargo install cargo-deb
 ``` 
 # dpkg -i ./target/debian/net-gazer_0.1.0_amd64.deb
 ```
-3. stop daemon (b/c we will run is from cli)
+3. stop daemon (b/c we will run it from cli)
 ```
 # systemctl stop net-gazer
 ```
