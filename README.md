@@ -51,15 +51,17 @@ Captured data can be:
 ```
 $ cargo deb
 ```
-to use deb, install is as cargo install [cargo-deb](https://crates.io/crates/cargo-deb)
-
-2. install net-gazer-sensor (plugins configured for dependency on net-gazer-sensor)
+install [cargo-deb](https://crates.io/crates/cargo-deb) as 
+```
+$ cargo install cargo-deb
+```
+2. install net-gazer-sensor (plugins deb is configured for dependency on net-gazer)
 ``` 
 # dpkg -i ./target/debian/net-gazer_0.1.0_amd64.deb
 ```
-3. stop daemon
+3. stop daemon (b/c we will run is from cli)
 ```
-# systemctl stop net-gazer-sensor
+# systemctl stop net-gazer
 ```
 4. build plugin (from plugin repo buld deb and install with dpkg)
 
@@ -76,6 +78,20 @@ $ docker-compose up
 $ cargo run -- -vv
 ```
 8. Create some network traffic 
+
+9. I use "redisinsight" to check graph (cypher query)
+```
+MATCH (n:hop) return n
+```
+to see 5 "neighbour" hopes
+```
+MATCH (a:hop{ip:'192.168.<your>.<ip>'})-[next*1..5]->(ancestors) RETURN a, ancestors
+```
+9. to remove everything (ofter done)
+```
+# apt-get purge net-gazer
+```
+
 
 
 ## To run (cli help)
