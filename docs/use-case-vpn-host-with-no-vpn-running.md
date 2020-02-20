@@ -14,8 +14,8 @@ Should there be any traffic?
 
 # net-gazer setup
 1. net-gazer-sensor sniffs traffic from 'eth0' nic and sends reports via 'lo'
-2. traceroute plugin deployed to net-gazer
-3. net-gazer-web runs on that box, on 'lo' nic. There is not db running, but transaction log, that I will replay later into database
+2. traceroute plugin deployed to net-gazer-sensor
+3. net-gazer-web runs on that(for simplicity) box, on 'lo' nic. There is not db running, but transaction log, that I will replay later into database
 
 
 # notes
