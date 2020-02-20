@@ -3,22 +3,25 @@
 # "_net-gazer_" - network connection capture and analysis daemon 
 
 ## Goals
-Design daemon that seats on gateway and passively intercepts traversing traffic, detecting SYN and SYN+ACK handshake portion. Reads remote IP and attempts to traceroute to remote host, capturing hops.  
+Design daemon, capable intercepting traversing ethernet frames from network interface. Daemon should be able to load plugins for specialized packet processing. Plugins will be sending inspection reports via host daemon provided facilities. For deployment, daemon will be deployed to endponts, such as gateway, switch spanning port and workstations
 
-Captured data can be:
-+ graphed
-+ geoiplocation enriched
-+ from elapsed time between SYN and SYN-ACK derive network performance
-+ capturing SACK (tcp retransmits) - derive network quality
-+ visualize internal network communication
-+ visualize inbound communication attempts
+Plugins can use captured data for:
++ network performace monitoring
++ communication visualization
++ statistical analysis
++ host/network security
 + many other things
 
+## my experiments
 + [traceroute: VPN box, with no VPN server running](./docs/use-case-vpn-host-with-no-vpn-running.md) 
 
 <br/>
 
-![net-gazer-web](https://github.com/soleinik/net-gazer-web) data-collector part..
+## other components
+![report collector](https://github.com/soleinik/net-gazer-web) data-collector part..
+![demo plugin](https://github.com/soleinik/net-gazer-plugin-demo) example pluging
+![traceroute plugin](https://github.com/soleinik/net-gazer-plugin-tracerote) - captures SYN+SYN/ACKs and traces tcp connection destination (just for fun) and profides graphed data, that can be visualised
+
 
 ## TODOs
 + geoiplocation - move to another process
