@@ -73,7 +73,7 @@ async fn main() -> std::io::Result<()> {
     // });
 
     //reporting...
-    let (comm_sender, comm_receiver): (lib_comm::CommTxChannel,lib_comm::CommRxChannel) = mpsc::channel();
+    let (comm_sender, comm_receiver): (lib_comm::CommTxChannel,lib_comm::CommRxChannel) = mpsc::sync_channel(1024);
     lib_comm::start(comm_receiver, &opt);
 
 

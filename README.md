@@ -14,6 +14,10 @@ Captured data can be:
 + visualize inbound communication attempts
 + many other things
 
++ [test-01: VPN box, with no VPN server running](./docs/use-case-vpn-host-with-no-vpn-running.md) 
+
+
+
 ![net-gazer-web](https://github.com/soleinik/net-gazer-web) data-collector part..
 
 ## TODOs
