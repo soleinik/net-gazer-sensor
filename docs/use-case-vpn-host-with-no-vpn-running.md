@@ -5,7 +5,7 @@
 ![VPN](vpn-server.png)
 
 
-# Setup
+# setup
 "A" is my VPN box, with no VPN server running... This box is accessible from outside via port forwarding. With VPN, (right or wrong), this box serves as ssh jumping host. This host is accesible from inside the network, via ssh and lxc console.
 
 # question
