@@ -3,7 +3,7 @@
 # "_net-gazer_" - network connection capture and analysis daemon 
 
 ## Goals
-Design daemon, capable of intercepting traversing ethernet frames from network interface. Daemon should be able to load plugins for specialized packet processing. Plugins will be sending inspection reports via host daemon provided facilities. For deployment, daemon will be deployed to endponts, such as gateway, switch spanning port and workstations
+Design daemon, capable of intercepting traversing ethernet frames from network interface. Daemon should be able to load plugins for specialized packet processing. Plugins will be sending inspection reports via host daemon provided facilities. For deployment, daemon will be deployed to endponts, such as gateway, switch spanning ports and workstations
 
 Plugins can use captured data for:
 + network performace monitoring
