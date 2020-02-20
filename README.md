@@ -18,9 +18,9 @@ Plugins can use captured data for:
 <br/>
 
 ## other components
-![report collector](https://github.com/soleinik/net-gazer-web) data-collector part..
-![demo plugin](https://github.com/soleinik/net-gazer-plugin-demo) example pluging
-![traceroute plugin](https://github.com/soleinik/net-gazer-plugin-tracerote) - captures SYN+SYN/ACKs and traces tcp connection destination (just for fun) and profides graphed data, that can be visualised
+![report collector](https://github.com/soleinik/net-gazer-web) data-collector part..   
+![demo plugin](https://github.com/soleinik/net-gazer-plugin-demo) example pluging   
+![traceroute plugin](https://github.com/soleinik/net-gazer-plugin-tracerote) - captures SYN+SYN/ACKs and traces tcp connection destination (just for fun) and profides graphed data, that can be visualised   
 
 
 ## TODOs
