@@ -19,7 +19,8 @@ Should there be any traffic?
 
 
 # notes
-traceroute pluging looks for tcp SYN+SYN/ACK combination. Since server socket does not exists - should be traffic on that host. I tried to portscan my extenal IP - nothing... next plugin to work on - record any ethernet frames. I want to capture port scan 
+traceroute pluging looks for tcp SYN+SYN/ACK combination. Since server socket does not exists - should be no traffic on that host. I tried to portscan my extenal IP - nothing... 
+next plugin to work on - record any ethernet frames. I want to capture port scan 
 
 I will leave it running for 24 hours - let's see what happens.....
 
