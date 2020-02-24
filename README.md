@@ -47,7 +47,7 @@ Plugins can use captured data for:
 
 ## Components
 1. [net-gaser-sensor](https://github.com/soleinik/net-gazer-sensor)
-2. net-gazer-plugin
+2. net-gazer-plugins
   * [demo](https://github.com/soleinik/net-gazer-plugin-demo)  
   * [traceroute](https://github.com/soleinik/net-gazer-plugin-traceroute)  
   * [all ipv4 plugin](https://github.com/soleinik/net-gazer-plugin-all-ipv4)  
