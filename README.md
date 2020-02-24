@@ -48,9 +48,10 @@ Plugins can use captured data for:
 ## Components
 1. [net-gaser-sensor](https://github.com/soleinik/net-gazer-sensor)
 2. net-gazer-plugin
-  * [demo](https://github.com/soleinik/net-gazer-plugin-demo)
+  * [demo](https://github.com/soleinik/net-gazer-plugin-demo)  
+  * [traceroute](https://github.com/soleinik/net-gazer-plugin-traceroute)  
+  * [all ipv4 plugin](https://github.com/soleinik/net-gazer-plugin-all-ipv4)  
 
-  * [traceroute](https://github.com/soleinik/net-gazer-plugin-traceroute)
 3. collector [net-gazer-web](https://github.com/soleinik/net-gazer-web)
 4. redisgraph db [docker-compose](https://github.com/soleinik/net-gazer-web/blob/master/docker-compose.yml)
 
