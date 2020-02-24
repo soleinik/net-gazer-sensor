@@ -14,13 +14,16 @@ Plugins can use captured data for:
 
 ## my experiments
 + [traceroute: VPN box, with no VPN server running](./docs/use-case-vpn-host-with-no-vpn-running.md) 
++ [all ipv4 plugin: VPN box](./docs/use-case-with-all-ipv4-plugin.md) 
+
 
 <br/>
 
 ## other components
 ![report collector](https://github.com/soleinik/net-gazer-web) data-collector part..   
 ![demo plugin](https://github.com/soleinik/net-gazer-plugin-demo) example pluging   
-![traceroute plugin](https://github.com/soleinik/net-gazer-plugin-traceroute) - captures SYN+SYN/ACKs and traces tcp connection destination (just for fun) and profides graphed data, that can be visualised   
+![traceroute plugin](https://github.com/soleinik/net-gazer-plugin-traceroute) - captures SYN+SYN/ACKs and traces tcp connection destination (just for fun) and profides graphed data, that can be visualised 
+![all ipv4 plugin](https://github.com/soleinik/net-gazer-plugin-all-ipv4) - captures all ipv4 pakets
 
 
 ## TODOs

@@ -24,3 +24,10 @@ next plugin to work on - record any ethernet frames. I want to capture port scan
 
 I will leave it running for 24 hours - let's see what happens.....
 
+# results
+Well, there was nothing interesting - log is full with own IP entries...Same result even with VPN server up. I did not try to connect to VPN, but I did try to scan external IP with online tools and with nmap - just own IP is logged. I notied that external scans would trigger log activity. So, something happens, but nothing to... write home about
+
+Negative result is also result. 
+
+
+Moving to next plugin...
