@@ -4,7 +4,6 @@ use libloading::{Library, Symbol};
 use net_gazer_core::{Plugin, CoreSender};
 use pnet::packet::ethernet::EthernetPacket;
 use pnet::datalink::NetworkInterface;
-use std::sync::Arc;
 
 #[derive(Default)]
 pub struct PluginManager{
