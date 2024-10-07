@@ -44,7 +44,6 @@ async fn main() -> std::io::Result<()> {
                 std::process::exit(-1);
             });
 
-    let mac = net_iface.mac_address();
 
     //need network
     let net = net_iface.ips.iter()
@@ -56,7 +55,7 @@ async fn main() -> std::io::Result<()> {
         })
         .find(|net| net.is_some()).flatten().unwrap();
 
-    info!("Setting up interceptor on {} [{}]", net_iface.name, mac);
+    info!("Setting up interceptor on {}", net_iface.name);
     info!("Detected networks:");
     net_iface.ips.iter()
         .for_each(|net| println!("\tnet:{}", net));

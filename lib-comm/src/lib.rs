@@ -1,12 +1,8 @@
-#[macro_use] extern crate log;
-extern crate async_std;
-
-extern crate lib_data;
-extern crate net_gazer_core;
 
 #[allow(dead_code)]
 #[allow(unused_imports)]
 mod messaging_generated;
+use log::{info, error};
 use messaging_generated::*;
 
 
@@ -38,8 +34,8 @@ pub fn start(rx:CommRxChannel, conf:& lib_data::OptConf ){
                         //.set("X-My-Header", "Secret")
                         .send_bytes(&data);
 
-                    if resp.error(){
-                        error!("[{}]\t{}",u, resp.status_line());
+                    if resp.is_err(){
+                        error!("[{}]\t{}",u, resp.err().unwrap());
                     }
                 });
             }

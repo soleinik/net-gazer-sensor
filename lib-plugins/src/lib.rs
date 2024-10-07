@@ -1,6 +1,5 @@
-extern crate libloading;
-#[macro_use] extern crate log;
 use libloading::{Library, Symbol};
+use log::{debug, error};
 use net_gazer_core::{Plugin, CoreSender};
 use pnet::packet::ethernet::EthernetPacket;
 use pnet::datalink::NetworkInterface;
@@ -25,7 +24,7 @@ impl PluginManager{
         if let Some(list) = discover(){
             for lib_name in list{
                 debug!("about to load library \"{}\"...", lib_name);
-                match Library::new(lib_name.clone()){
+                match unsafe{ Library::new(lib_name.clone())}{
                     Ok(lib) => {
                         debug!("library \"{}\" loaded! Looking for plugin entry point...", lib_name);
                         unsafe {

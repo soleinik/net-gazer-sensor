@@ -11,8 +11,9 @@ net-gazer-core = { git = "https://github.com/soleinik/net-gazer-core", branch = 
 lib-data = { path="../lib-data" }
 
 
-log = "0.4.8"
+log = "0.4"
 
-flatbuffers = "0.6.1"
-ureq = { version = "0.11.4", default-features = false,  features = ["rustls"] }
+flatbuffers = "24.3"
+#ureq = { version = "2.10.1", default-features = false,  features = ["rustls"] }
+ureq = { version = "2.10.1", default-features = false,  features = ["tls"] }
 async-std = { version="1.4", default-features = true, features=["attributes"] }

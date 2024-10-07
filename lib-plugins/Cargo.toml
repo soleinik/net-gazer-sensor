@@ -11,5 +11,5 @@ net-gazer-core = { git = "https://github.com/soleinik/net-gazer-core", branch = 
 
 
 log = "0.4.8"
-pnet = "0.25.0"
-libloading = "0.5.2"
+pnet = "0.35"
+libloading = "0.8"
